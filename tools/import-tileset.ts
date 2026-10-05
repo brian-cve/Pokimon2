@@ -1,52 +1,45 @@
-// Convierte una hoja de tiles dibujada (assets-src/custom/tileset.jpg) en public/assets/tileset.png.
+// Convierte una hoja de tiles dibujada (assets-src/custom/tileset2.jpg) en public/assets/tileset.png.
 //   npm run assets:import-tileset [-- <imagen.jpg>]
-// Cada tile se recorta de una región fija de la hoja (ver REGIONS) y se reduce a 16x16; los objetos
-// (árbol, roca, valla, casa) se recortan quitando el papel cuadriculado del fondo. Sobre la hoja:
+// Cada tile se recorta de una región fija de la hoja y se reduce a 16x16; los objetos
+// (árbol, roca, valla, casa) se recortan quitando el fondo magenta. Sobre la hoja:
 // out/tileset-preview.png (x8) para revisar el resultado.
 import { createCanvas, loadImage, type Canvas } from '@napi-rs/canvas';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { TILE, TILE_DEFS } from '../art/tiles';
 import { fromSprite } from './drawable';
 
-const file = process.argv[2] ?? 'assets-src/custom/tileset.jpg';
+const file = process.argv[2] ?? 'assets-src/custom/tileset2.jpg';
 const img = await loadImage(readFileSync(file));
 const W = img.width, H = img.height;
 const src = createCanvas(W, H);
 src.getContext('2d').drawImage(img, 0, 0);
 
-// ---- cuadrícula de terreno: 5 columnas x 2 filas de celdas de ~154x156 que empiezan en (302,120)
-const CX = 302, CY = 120, CW = 154, CH = 156, INSET = 14;
-const cell = (c: number, r: number): Rect => [CX + c * CW + INSET, CY + r * CH + INSET, CW - 2 * INSET, CH - 2 * INSET];
+// ---- terreno: celdas de ~167 px separadas por canales magenta (columnas fijas; filas de alto variable)
+const COLS = [2, 173, 343, 514, 685, 855], CELL_W = 167;
+const ROWS = [2, 158, 310, 450, 618]; // y de arranque de cada fila de terreno
 type Rect = [x: number, y: number, w: number, h: number];
+/** Región cuadrada centrada en la celda (c,r), `size` px de lado (y `dy` de desplazamiento vertical). */
+const cellRect = (c: number, r: number, size: number, dy = 0, cellH = 148): Rect =>
+  [COLS[c] + Math.round((CELL_W - size) / 2), ROWS[r] + Math.round((cellH - size) / 2) + dy, size, size];
 
-// ---- papel del fondo: casi blanco/crema conectado con el borde de la región (las líneas de la cuadrícula
-// son un poco más oscuras pero igual de poco saturadas)
+// ---- objetos: el fondo es magenta liso; se pasa a transparente por color (incluye el halo rosado del JPEG)
 function cutout([rx, ry, rw, rh]: Rect): Canvas {
   const c = createCanvas(rw, rh);
   const cx = c.getContext('2d');
   cx.drawImage(src, rx, ry, rw, rh, 0, 0, rw, rh);
   const d = cx.getImageData(0, 0, rw, rh), p = d.data;
-  const paper = (i: number) => {
-    const mx = Math.max(p[i], p[i + 1], p[i + 2]), mn = Math.min(p[i], p[i + 1], p[i + 2]);
-    return mn > 170 && mx - mn < 48;
-  };
-  const bg = new Uint8Array(rw * rh), st: number[] = [];
-  const push = (x: number, y: number) => { const q = y * rw + x; if (!bg[q] && paper(q * 4)) { bg[q] = 1; st.push(q); } };
-  for (let x = 0; x < rw; x++) { push(x, 0); push(x, rh - 1); }
-  for (let y = 0; y < rh; y++) { push(0, y); push(rw - 1, y); }
-  while (st.length) {
-    const q = st.pop()!, x = q % rw, y = (q / rw) | 0;
-    if (x > 0) push(x - 1, y); if (x < rw - 1) push(x + 1, y);
-    if (y > 0) push(x, y - 1); if (y < rh - 1) push(x, y + 1);
+  for (let i = 0; i < p.length; i += 4) {
+    if (p[i] > 120 && p[i + 2] > 120 && (p[i] + p[i + 2]) / 2 - p[i + 1] > 45) p[i + 3] = 0;
   }
-  // 1 px de halo claro (borde del JPEG) también pasa a transparente
-  const halo: number[] = [];
-  for (let y = 1; y < rh - 1; y++) for (let x = 1; x < rw - 1; x++) {
-    const q = y * rw + x;
-    if (!bg[q] && (bg[q - 1] || bg[q + 1] || bg[q - rw] || bg[q + rw]) && Math.min(p[q * 4], p[q * 4 + 1], p[q * 4 + 2]) > 150) halo.push(q);
+  // el borde del JPEG deja un halo rosado: se come hasta 2 px de píxeles rosados junto al fondo
+  for (let pass = 0; pass < 2; pass++) {
+    const gone: number[] = [];
+    for (let y = 1; y < rh - 1; y++) for (let x = 1; x < rw - 1; x++) {
+      const q = y * rw + x, i = q * 4;
+      if (p[i + 3] && p[i] > p[i + 1] + 20 && p[i + 2] > p[i + 1] + 20 && (!p[i - 1] || !p[i + 7] || !p[(q - rw) * 4 + 3] || !p[(q + rw) * 4 + 3])) gone.push(i);
+    }
+    for (const i of gone) p[i + 3] = 0;
   }
-  for (const q of halo) bg[q] = 1;
-  for (let q = 0; q < rw * rh; q++) if (bg[q]) p[q * 4 + 3] = 0;
   cx.putImageData(d, 0, 0);
   return c;
 }
@@ -84,37 +77,29 @@ function place(obj: Canvas, cw: number, ch: number, dx: number, dy: number, w: n
 
 // ---------------------------------------------------------------- tiles
 const out = new Map<string, Canvas>();
-// esquina sin tréboles: el trébol oscuro de la celda se repetiría como un tablero
-const grass: Rect = [462, 126, 84, 84];
-out.set('grass0', fill(grass));
-out.set('grass1', fill(grass, 'h'));
-out.set('grass2', fill(grass, 'v'));
-out.set('flowerRed', fill(cell(0, 1)));
-out.set('flowerYellow', fill(cell(1, 1)));
-out.set('tallGrass', fill(cell(0, 0)));
-out.set('path', fill([CX + 2 * CW + 30, CY + CH + 30, CW - 60, CH - 60]));
-[0, 1, 2].forEach((i) => out.set(`water${i}`, fill([i * 152 + 14, 432 + 14, 152 - 28, 150 - 28])));
-out.set('forest', fill([CX + 2 * CW + 30, CY + 30, CW - 60, CH - 60]));
+out.set('grass0', fill(cellRect(0, 0, 130)));
+out.set('grass1', fill(cellRect(3, 0, 130)));
+out.set('grass2', fill(cellRect(0, 0, 130), 'v'));
+out.set('flowerRed', fill(cellRect(1, 0, 130)));    // flores blancas
+out.set('flowerYellow', fill(cellRect(2, 0, 130)));
+out.set('tallGrass', fill(cellRect(1, 1, 140)));
+out.set('path', fill([COLS[1] + 45, ROWS[2] + 40, 78, 78])); // centro arenoso de la franja, sin los bordes de pasto
+[0, 1, 2].forEach((i) => out.set(`water${i}`, fill(cellRect(i, 4, 112, 12)))); // sin la línea de oleaje superior
+out.set('forest', fill(cellRect(0, 3, 150, 0, 160)));
 
-// árbol: copa (arbusto) sobre tronco, en un lienzo de 16x32 partido en treeTop / treeBottom
-const canopy = cutout([455, 436, 150, 146]), trunk = cutout([606, 428, 92, 158]);
-const tree = createCanvas(TILE, TILE * 2), tx = tree.getContext('2d');
-tx.drawImage(place(trunk, TILE, TILE * 2, 3, 12, 10, 20), 0, 0);
-tx.drawImage(place(canopy, TILE, TILE * 2, 0, 1, 16, 17), 0, 0);
+// árbol: pieza única de 16x32 partida en treeTop / treeBottom (la copa ocupa la parte alta)
+const tree = createCanvas(TILE, TILE * 2);
+tree.getContext('2d').drawImage(place(cutout([2, 772, 168, 250]), TILE, TILE * 2, 0, 3, 16, 29), 0, 0);
 const half = (c: Canvas, y: number) => { const t = tile(); t.getContext('2d').drawImage(c, 0, y, TILE, TILE, 0, 0, TILE, TILE); return t; };
 out.set('treeTop', half(tree, 0));
 out.set('treeBottom', half(tree, TILE));
 
-out.set('rock', place(cutout([690, 462, 124, 116]), TILE, TILE, 1, 3, 14, 12));
-out.set('fence', place(cutout([800, 448, 158, 128]), TILE, TILE, 0, 2, 16, 13));
+out.set('rock', place(cutout([386, 776, 126, 120]), TILE, TILE, 1, 3, 14, 13));
+out.set('fence', place(cutout([514, 776, 126, 120]), TILE, TILE, 0, 3, 16, 12));
 
-// casa 3x3: la ilustración se estira a 48x48 y se le pinta una puerta (la hoja no la trae)
-const house = createCanvas(48, 48), hx = smooth(house);
-hx.drawImage(cutout([0, 48, 308, 390]), 0, 0, 48, 48);
-hx.fillStyle = '#3b2412'; hx.fillRect(19, 33, 10, 14);
-hx.fillStyle = '#8a5a2e'; hx.fillRect(20, 34, 8, 13);
-hx.fillStyle = '#6b4220'; hx.fillRect(24, 34, 1, 13);
-hx.fillStyle = '#f2c14e'; hx.fillRect(26, 41, 1, 1);
+// casa 3x3: la ilustración (sin la franja de suelo de abajo) se estira a 48x48
+const house = createCanvas(48, 48);
+smooth(house).drawImage(cutout([770, 772, 254, 224]), 0, 0, 48, 48);
 for (let i = 0; i < 9; i++) {
   const t = tile();
   t.getContext('2d').drawImage(house, (i % 3) * TILE, Math.floor(i / 3) * TILE, TILE, TILE, 0, 0, TILE, TILE);
