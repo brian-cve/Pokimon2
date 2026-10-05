@@ -107,6 +107,9 @@ export class OverworldScene extends Phaser.Scene {
     this.events.on('resume', this.onResume);
     this.events.once('shutdown', () => this.events.off('resume', this.onResume));
 
+    this.input.keyboard!.on('keydown-ESC', this.openPause);
+    this.input.keyboard!.on('keydown-P', this.openPause);
+
     this.scene.bringToTop('UI');
     audio.playMusic('overworld');
     this.showBanner(String(mapProps.displayName));
@@ -232,7 +235,23 @@ export class OverworldScene extends Phaser.Scene {
     this.scene.bringToTop('UI');
   }
 
-  private onResume = (_sys: unknown, data?: { result?: BattleResult }): void => { void this.afterBattle(data?.result); };
+  /** Menú de pausa: solo con el jugador quieto y sin transiciones en curso. */
+  private lastResume = 0;
+  private openPause = (): void => {
+    // el margen evita reabrir la pausa con la misma pulsación de Esc que la cerró
+    if (!this.scene.isActive() || this.moving || this.transitioning || performance.now() - this.lastResume < 250) return;
+    audio.sfx('select');
+    this.scene.pause();
+    this.scene.launch('Pause');
+    this.scene.bringToTop('Pause');
+    this.scene.bringToTop('UI');
+  };
+
+  private onResume = (_sys: unknown, data?: { result?: BattleResult }): void => {
+    this.lastResume = performance.now();
+    if (!data?.result) { this.input.keyboard!.resetKeys(); return; } // vuelta de la pausa
+    void this.afterBattle(data.result);
+  };
 
   private async afterBattle(result?: BattleResult): Promise<void> {
     this.input.keyboard!.resetKeys();

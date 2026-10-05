@@ -138,7 +138,8 @@ if (!dump) {
     const bw = b.x1 - b.x0 + 1, bh = b.y1 - b.y0 + 1;
     const k = createCanvas(w, h); const kc = k.getContext('2d');
     kc.imageSmoothingEnabled = true; kc.imageSmoothingQuality = 'high';
-    if (mode === 'stretch') kc.drawImage(cut, b.x0, b.y0, bw, bh, 0, 0, w, h);
+    // el fondo de combate es opaco: sin recorte (las nubes casi blancas del cielo se tomarían por fondo)
+    if (mode === 'stretch') kc.drawImage(name === 'battle_bg' ? c : cut, b.x0, b.y0, bw, bh, 0, 0, w, h);
     else {
       const sc = Math.min(w / bw, h / bh), dw = Math.max(1, Math.round(bw * sc)), dh = Math.max(1, Math.round(bh * sc));
       kc.drawImage(cut, b.x0, b.y0, bw, bh, Math.round((w - dw) / 2), h - dh, dw, dh);
