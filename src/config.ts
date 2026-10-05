@@ -6,3 +6,7 @@ export const TILE = 16;
 export const PLAYER_H = 24;
 /** Clave de textura del atlas de sprites (ver tools/build-assets.ts). */
 export const ATLAS = 'atlas';
+/** Fuente de títulos y menús nuevos (se carga con @fontsource en main.ts). El texto del combate usa la fuente bitmap. */
+export const FONT = '"Press Start 2P"';
+/** Tinta oscura de los menús (la misma K de la paleta). */
+export const INK_CSS = '#1f1a2e';

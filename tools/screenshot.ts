@@ -3,6 +3,7 @@
 // Variables de entorno:
 //   TELEPORT="mapa:x,y,dir"   coloca al jugador antes de empezar.
 //   ENCOUNTER="especie:nivel" fuerza un combate.
+//   TITLE=1                   no pasa del título (por defecto se pulsa Enter para empezar la partida).
 //   PRINT=<js>                imprime el resultado de la expresión antes de capturar.
 //   KEYS="a|b|c"              secuencia de pasos separados por '|':
 //        Tecla:ms             mantiene la tecla ms milisegundos
@@ -23,6 +24,11 @@ page.on('console', (m) => { const t = m.text(); if (!/GL Driver|WebGL|vite/.test
 page.on('pageerror', (e) => console.log('[pageerror]', e.message));
 await page.goto(url);
 await page.waitForTimeout(1200);
+
+if (!process.env.TITLE) {
+  await page.keyboard.press('Enter'); // JUGAR
+  await page.waitForTimeout(1200);
+}
 
 const ow = "window.__game.scene.getScene('Overworld')";
 const tp = (process.env.TELEPORT ?? '').match(/^(\w+):(\d+),(\d+),(\w+)$/);

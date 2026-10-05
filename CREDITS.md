@@ -14,3 +14,7 @@ La licencia está copiada en `assets-src/kenney/<pack>/License.txt`. CC0 no exig
 ## Generado por código (originales de este proyecto)
 
 Interfaz (cajas, cursor, barras), fondo y efectos de combate, fuente bitmap, agua animada, hierba alta, marcador de colisión, música y efectos de sonido.
+
+## Fuente
+
+**Press Start 2P** de CodeMan38, licencia [SIL Open Font License 1.1](https://openfontlicense.org), distribuida con el paquete `@fontsource/press-start-2p`. Se usa en el título, la pausa y los menús.

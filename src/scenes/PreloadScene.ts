@@ -2,8 +2,9 @@ import Phaser from 'phaser';
 import { ATLAS } from '../config';
 import { MAP_IDS, mapKey } from '../data/maps';
 import { initFontMetrics } from '../ui/fontMetrics';
+import { createHudTextures } from '../ui/hudTextures';
 
-/** Carga todos los assets generados por `npm run assets` (atlas, tileset, fuente y mapas de Tiled). */
+/** Carga todos los assets de `public/assets/` (atlas, tileset, fuente y mapas de Tiled) y crea las texturas procedurales del HUD. */
 export class PreloadScene extends Phaser.Scene {
   constructor() { super('Preload'); }
 
@@ -17,7 +18,8 @@ export class PreloadScene extends Phaser.Scene {
 
   create(): void {
     initFontMetrics(this.cache);
-    this.scene.start('Overworld', { mapId: 'town' });
+    createHudTextures(this);
+    this.scene.start('Title');
     this.scene.launch('UI');
   }
 }

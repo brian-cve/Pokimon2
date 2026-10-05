@@ -23,6 +23,8 @@ npm run assets:download && npm run assets:kenney
 | `npm run build` | Comprobación de tipos + build de producción en `dist/` (rutas relativas) |
 | `npm run assets:download` | Descarga los packs CC0 de Kenney a `assets-src/kenney/` |
 | `npm run assets` | Regenera atlas, tileset, fuente y mapas de Tiled en `public/assets/` con el arte procedural (`art/`) |
+| `npm run assets:import` | Reconstruye el atlas desde `assets-src/custom/atlas.jpg` |
+| `npm run assets:import-tileset` | Reconstruye el tileset desde `assets-src/custom/tileset2.jpg` |
 | `npm run assets:kenney` | Lo mismo, pero importando los packs de Kenney |
 | `npm test` | 51 tests (motor de combate, canciones, integridad de atlas y mapas) |
 | `npm run lint` | ESLint + typescript-eslint |
@@ -30,7 +32,9 @@ npm run assets:download && npm run assets:kenney
 | `npm run sheet` | Hojas de sprites ×4 en `out/` para revisar el arte |
 | `npm run shot -- <nombre>` | Captura del juego real con Chromium headless (ver `tools/screenshot.ts`) |
 
-Controles: **flechas/WASD** mover · **Z/Enter/Espacio** confirmar · **X/Backspace** volver · **M** silenciar.
+Controles: **flechas/WASD** mover · **Z/Enter/Espacio** confirmar · **X/Backspace** volver · **Esc/P** pausa · **M** silenciar.
+
+**Flujo de juego:** `Preload → Title (JUGAR · CONTROLES · SONIDO) → Overworld ⇄ Battle`; desde el mundo, **Esc/P** abre la pausa (CONTINUAR · SONIDO · SALIR AL INICIO, con confirmación). El logo *RUBYMON* y el contador de equipo (6 pokéballs arriba a la izquierda) se generan por código (`src/ui/logo.ts`, `art/hud.ts`). Los menús usan la fuente *Press Start 2P* (OFL, vía `@fontsource`); el texto de combate sigue con la fuente bitmap propia.
 
 ## Qué demuestra este proyecto
 
