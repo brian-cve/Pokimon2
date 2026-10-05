@@ -10,9 +10,13 @@ import { TitleScene } from './scenes/TitleScene';
 import { UIScene } from './scenes/UIScene';
 import { audio } from './systems/audio';
 import { game as gameState } from './systems/gameState';
+import { setupTouchControls } from './ui/touchControls';
 
 // La fuente de menús debe estar lista antes de crear el primer texto de Phaser.
 await document.fonts.load('8px "Press Start 2P"').catch(() => undefined);
+
+// Mando táctil (cruceta + A/B/MENÚ) en móviles y tabletas. Va antes del juego: reserva espacio y Phaser mide ya con él.
+setupTouchControls();
 
 const game = new Phaser.Game({
   type: Phaser.AUTO,
