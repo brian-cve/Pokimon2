@@ -8,6 +8,7 @@ import { Battle, type Action, type BattleEvent, type Side } from '../systems/bat
 import { createCreature, type Creature } from '../systems/creature';
 import { game } from '../systems/gameState';
 import { poolsFor } from '../systems/pool';
+import { dust, playMoveFx, recoil, sparkle } from '../systems/moveFx';
 import { sleep, sweepOpen } from '../systems/transition';
 import { COLOR } from '../ui/colors';
 import { INK, PixelText, wrap } from '../ui/PixelText';
@@ -56,6 +57,9 @@ export class BattleScene extends Phaser.Scene {
   private startLevel = 0;
   private pending!: BattleInit;
   private battles = 0;
+  /** Mientras la mochila está abierta (y un instante después) el combate ignora el teclado. */
+  private overlayUntil = 0;
+  private overlayOpen = false;
 
   constructor() { super('Battle'); }
 
@@ -74,6 +78,7 @@ export class BattleScene extends Phaser.Scene {
 
     this.input.keyboard!.on('keydown', (e: KeyboardEvent) => {
       const a = KEYMAP[e.code];
+      if (this.overlayOpen || performance.now() < this.overlayUntil) return;
       if (a) [...this.listeners].forEach((l) => l(a));
     });
     this.events.on(Phaser.Scenes.Events.WAKE, (_sys: unknown, data: BattleInit) => this.begin(data));
@@ -152,7 +157,6 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private async playEvents(events: BattleEvent[]): Promise<void> {
-    let lastType: TypeId = 'normal';
     for (const e of events) {
       switch (e.t) {
         case 'text':
@@ -160,8 +164,8 @@ export class BattleScene extends Phaser.Scene {
           else if (e.text.includes('Escapaste')) audio.sfx('run');
           await this.say(e.text, e.text.includes('experiencia'));
           break;
-        case 'move': lastType = e.moveType; await this.lunge(e.side); break;
-        case 'hit': await this.hit(e, lastType); break;
+        case 'move': await this.attack(e.side, e.moveId); break;
+        case 'hit': await this.hit(e); break;
         case 'faint': await this.faint(e.side); break;
         case 'exp': this.expGained += e.amount; await this.playerBox.tweenExp(e.from, e.to); break;
         case 'levelUp': await this.levelUp(e); break;
@@ -243,6 +247,14 @@ export class BattleScene extends Phaser.Scene {
 
   // ---------------------------------------------------------------- menús
 
+  /** MOCHILA / EQUIPO: ficha del equipo como overlay (solo lectura). */
+  private openParty(): void {
+    this.overlayOpen = true;
+    this.scene.launch('Party', { onClose: () => { this.overlayOpen = false; this.overlayUntil = performance.now() + 200; } });
+    this.scene.bringToTop('Party');
+    this.scene.bringToTop('UI');
+  }
+
   private async chooseAction(): Promise<'fight' | 'run'> {
     this.phase = 'actions';
     this.clearMenu();
@@ -252,7 +264,7 @@ export class BattleScene extends Phaser.Scene {
     this.menuImage('ui_prompt', 0, 112, 110);
     this.menuText(10, 121, `¿Qué debería hacer\n${pname}?`);
     this.menuImage('ui_menu', 136, 112, 110);
-    const options: [string, boolean][] = [['LUCHAR', true], ['MOCHILA', false], ['EQUIPO', false], ['HUIR', true]];
+    const options: [string, boolean][] = [['LUCHAR', true], ['MOCHILA', true], ['EQUIPO', true], ['HUIR', true]];
     const pos = (i: number) => ({ x: 150 + (i % 2) * 42, y: 124 + Math.floor(i / 2) * 16 });
     options.forEach(([t, on], i) => this.menuText(pos(i).x, pos(i).y, t, on ? INK : DISABLED, on ? undefined : null));
     const cursor = this.menuImage('ui_cursor', 0, 0, 112);
@@ -263,6 +275,7 @@ export class BattleScene extends Phaser.Scene {
       const a = await this.waitAct(() => true).promise;
       if (a === 'left' || a === 'right') { this.cursor ^= 1; audio.sfx('select'); }
       else if (a === 'up' || a === 'down') { this.cursor ^= 2; audio.sfx('select'); }
+      else if (a === 'ok' && (this.cursor === 1 || this.cursor === 2)) { audio.sfx('confirm'); this.openParty(); }
       else if (a === 'ok' && options[this.cursor][1]) {
         audio.sfx('confirm');
         const choice = this.cursor === 0 ? 'fight' : 'run';
@@ -314,39 +327,37 @@ export class BattleScene extends Phaser.Scene {
 
   private sprite(side: Side): Phaser.GameObjects.Image { return side === 'player' ? this.playerSprite : this.enemySprite; }
 
-  private lunge(side: Side): Promise<void> {
-    const s = this.sprite(side);
-    const dx = side === 'player' ? 14 : -14, dy = side === 'player' ? -8 : 8;
-    const x = s.x, y = s.y;
-    return new Promise((res) => this.tweens.add({
-      targets: s, x: x + dx, y: y + dy, duration: 110, yoyo: true, ease: 'Quad.easeOut',
-      onComplete: () => { s.setPosition(x, y); res(); },
-    }));
+  /** Animación propia de cada movimiento (embestidas, proyectiles, ondas...) hasta el instante del impacto. */
+  private attack(side: Side, moveId: string): Promise<void> {
+    return playMoveFx(this, moveId, this.sprite(side), this.sprite(side === 'player' ? 'enemy' : 'player'));
   }
 
-  private async hit(e: Extract<BattleEvent, { t: 'hit' }>, type: TypeId): Promise<void> {
+  /** Solo depuración: reproduce la animación de un movimiento (lo usan las capturas automáticas). */
+  debugFx(moveId: string, side: Side = 'player'): void { void this.attack(side, moveId); }
+
+  private async hit(e: Extract<BattleEvent, { t: 'hit' }>): Promise<void> {
     audio.sfx(e.eff >= 2 ? 'hitSuper' : e.eff < 1 ? 'hitWeak' : 'hit');
     const target = this.sprite(e.side);
-    // el destello de impacto sale del pool y vuelve a él al terminar su animación
-    const pools = poolsFor(this);
-    const fx = pools.image(`fx_${type}`, target.x, target.y - 28).setOrigin(0.5).setDepth(60).setScale(0.5);
-    this.tweens.add({ targets: fx, scale: 2, alpha: 0, duration: 320, ease: 'Quad.easeOut', onComplete: () => pools.releaseImage(fx) });
-    // parpadeo al recibir daño + barra de PS
-    const blink = new Promise<void>((res) => this.tweens.add({ targets: target, alpha: 0, duration: 60, yoyo: true, repeat: 4, onComplete: () => { target.setAlpha(1); res(); } }));
+    // sacudida de cámara proporcional a la eficacia, retroceso con destello blanco, y barra de PS
+    this.cameras.main.shake(e.eff >= 2 ? 220 : 130, e.eff >= 2 ? 0.014 : e.eff < 1 ? 0.002 : 0.006);
     const box = e.side === 'enemy' ? this.enemyBox : this.playerBox;
+    const blink = recoil(this, target, e.side === 'enemy' ? 1 : -1, e.eff)
+      .then(() => new Promise<void>((res) => this.tweens.add({ targets: target, alpha: 0, duration: 50, yoyo: true, repeat: 3, onComplete: () => { target.setAlpha(1); res(); } })));
     await Promise.all([blink, box.tweenHp(e.hpBefore, e.hpAfter)]);
   }
 
   private faint(side: Side): Promise<void> {
     audio.sfx('faint');
     const s = this.sprite(side);
-    return new Promise((res) => this.tweens.add({ targets: s, y: s.y + 28, alpha: 0, duration: 520, ease: 'Quad.easeIn', onComplete: () => res() }));
+    void dust(this, s);
+    return new Promise((res) => this.tweens.add({ targets: s, y: s.y + 28, alpha: 0, scaleY: 0.6, duration: 520, ease: 'Quad.easeIn', onComplete: () => { s.setScale(1); res(); } }));
   }
 
   private async levelUp(e: Extract<BattleEvent, { t: 'levelUp' }>): Promise<void> {
     const name = SPECIES[this.playerC.speciesId].name.toUpperCase();
     audio.sfx('levelUp');
     audio.duck(1800);
+    void sparkle(this, this.playerSprite);
     this.playerBox.setLevel(e.level);
     this.playerBox.setHp(e.hp);
     this.playerBox.setExp(0);

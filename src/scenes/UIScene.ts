@@ -35,7 +35,7 @@ export class UIScene extends Phaser.Scene {
 
   update(): void {
     // fuera de partida (título) y durante el combate el contador no se muestra
-    this.hud.setVisible(game.inGame && !this.scene.isActive('Battle'));
+    this.hud.setVisible(game.inGame && !this.scene.isActive('Battle') && !this.scene.isActive('Party'));
     if (!this.hud.visible) return;
     this.balls.forEach((b, i) => { const t = i < game.party.length ? 'ball_full' : 'ball_empty'; if (b.texture.key !== t) b.setTexture(t); });
   }

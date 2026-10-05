@@ -8,7 +8,7 @@ export type Side = 'player' | 'enemy';
 
 export type BattleEvent =
   | { t: 'text'; text: string }
-  | { t: 'move'; side: Side; moveType: TypeId }
+  | { t: 'move'; side: Side; moveType: TypeId; moveId: string }
   | { t: 'hit'; side: Side; hpBefore: number; hpAfter: number; max: number; eff: number }
   | { t: 'faint'; side: Side }
   | { t: 'exp'; amount: number; from: number; to: number }
@@ -108,7 +108,7 @@ export class Battle {
 
     const who = side === 'player' ? nameOf(attacker) : `${nameOf(attacker)} salvaje`;
     ev.push({ t: 'text', text: `¡${who} usó ${move.name.toUpperCase()}!` });
-    ev.push({ t: 'move', side, moveType: move.type });
+    ev.push({ t: 'move', side, moveType: move.type, moveId: move.id });
 
     if (this.rng() * 100 >= move.accuracy) {
       ev.push({ t: 'text', text: `¡El ataque de ${nameOf(attacker)} falló!` });

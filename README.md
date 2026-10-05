@@ -34,6 +34,8 @@ npm run assets:download && npm run assets:kenney
 
 Controles: **flechas/WASD** mover · **Z/Enter/Espacio** confirmar · **X/Backspace** volver · **Esc/P** pausa · **M** silenciar.
 
+**Combate:** cada movimiento tiene su animación (`src/systems/moveFx.ts`: embestidas, zarpazos, colmillos, bolas de fuego, chorros de llama y agua, ondas, lianas, remolino de hojas) con partículas procedurales (`art/fx.ts`), retroceso con destello y sacudida de cámara según la eficacia. **MOCHILA** y **EQUIPO** del combate, y **MOCHILA** de la pausa, abren la ficha del equipo (`PartyScene`).
+
 **Flujo de juego:** `Preload → Title (JUGAR · CONTROLES · SONIDO) → Overworld ⇄ Battle`; desde el mundo, **Esc/P** abre la pausa (CONTINUAR · SONIDO · SALIR AL INICIO, con confirmación). El logo *RUBYMON* y el contador de equipo (6 pokéballs arriba a la izquierda) se generan por código (`src/ui/logo.ts`, `art/hud.ts`). Los menús usan la fuente *Press Start 2P* (OFL, vía `@fontsource`); el texto de combate sigue con la fuente bitmap propia.
 
 ## Qué demuestra este proyecto
