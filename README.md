@@ -1,22 +1,27 @@
 # Pokimon Rubí-lite
 
-Juego de rol por turnos inspirado en Pokémon Rubí, hecho con **Phaser + Vite + TypeScript**. Dos mapas explorables, combates aleatorios en hierba alta, audio procedural y un pipeline de assets completo: **atlas de sprites, tilemaps de Tiled, fuente bitmap y object pooling**.
+Juego de rol por turnos inspirado en Pokémon Rubí, hecho con **Phaser 3 (3.90) + Vite + TypeScript**. Dos mapas explorables, combates aleatorios en hierba alta, audio procedural y un pipeline de assets completo: **atlas de sprites, tilemaps de Tiled, fuente bitmap y object pooling**.
 
-Todo el arte y el audio son originales y se generan por código (sin assets externos ni material de terceros).
+**Arte:** el mundo (terreno, casas, árboles), el personaje y las criaturas vienen de packs **CC0 de Kenney** ([Tiny Town](https://kenney.nl/assets/tiny-town) y [Tiny Dungeon](https://kenney.nl/assets/tiny-dungeon)); la interfaz, la fuente, el agua, la hierba alta y el audio se generan por código. Ver [`CREDITS.md`](CREDITS.md). Sin material de Nintendo ni de terceros con copyright.
 
 ## Arranque rápido
 
 ```bash
 npm install
 npm run dev          # http://localhost:5173
+
+# opcional: volver a descargar los packs de Kenney y regenerar los assets
+npm run assets:download && npm run assets
 ```
 
 | Comando | Qué hace |
 | --- | --- |
 | `npm run dev` | Servidor de desarrollo (Vite) |
 | `npm run build` | Comprobación de tipos + build de producción en `dist/` (rutas relativas) |
-| `npm run assets` | Regenera atlas, tileset, fuente y mapas de Tiled en `public/assets/` |
-| `npm test` | 47 tests (motor de combate, canciones, integridad de atlas y mapas) |
+| `npm run assets:download` | Descarga los packs CC0 de Kenney a `assets-src/kenney/` |
+| `npm run assets` | Importa los packs y regenera atlas, tileset, fuente y mapas de Tiled en `public/assets/` |
+| `npm run assets:procedural` | Lo mismo, pero con el arte original generado por código (`art/`) |
+| `npm test` | 51 tests (motor de combate, canciones, integridad de atlas y mapas) |
 | `npm run lint` | ESLint + typescript-eslint |
 | `npm run check` | lint + tests + build (lo mismo que ejecuta el CI) |
 | `npm run sheet` | Hojas de sprites ×4 en `out/` para revisar el arte |
@@ -54,10 +59,13 @@ Los objetos **creados no crecen** después del primer combate; solo crece el nú
 
 ```
 art/                    Arte procedural (SOLO en build, no entra en el bundle del juego)
+assets-src/kenney/      Packs CC0 descargados (hojas de tiles + licencia)
   palette.ts            Única paleta (31 colores) · grid.ts primitivas con luz arriba-izquierda
   tiles.ts player.ts creatures/ ui.ts font.ts
 tools/
-  build-assets.ts       art/ + mapas ASCII  →  public/assets/ (atlas, tileset, fuente, Tiled)
+  build-assets.ts       art/ o packs externos + mapas ASCII  →  public/assets/ (atlas, tileset, fuente, Tiled)
+  external/kenney.ts    Importador: recorta tiles/personaje/criaturas de las hojas de Kenney
+  download-kenney.ts    Descarga y extrae los packs
   maps/                 Mapas fuente (ASCII) y conversor a Tiled
   export-sheet.ts       Hojas de sprites para revisar el arte
   screenshot.ts         Capturas del juego real (Playwright)
@@ -70,7 +78,7 @@ src/
   ui/                   PixelText, StatusBox, métricas de fuente, colores
 ```
 
-Flujo de datos: **`art/` + `tools/maps` → `npm run assets` → `public/assets/` → `PreloadScene` → escenas**.
+Flujo de datos: **packs de Kenney (o `art/`) + `tools/maps` → `npm run assets` → `public/assets/` → `PreloadScene` → escenas**.
 
 ```
 PreloadScene ──carga──▶ atlas · tileset · font.fnt · maps/*.json
@@ -91,7 +99,7 @@ OverworldScene ──encuentro──▶ BattleScene (wake) ──resultado──
 
 ## Pruebas
 
-`npm test` ejecuta 47 pruebas, entre ellas:
+`npm test` ejecuta 51 pruebas, entre ellas:
 
 - **Motor:** tabla de tipos, fórmula de daño con STAB, orden por velocidad, PP/Forcejeo, EXP y subida de nivel, huida y tablas de encuentro disjuntas.
 - **Assets generados:** cada especie tiene frontal/trasera en el atlas, ningún frame se solapa, y **todo nombre de frame que el código pide existe** (detecta erratas).
@@ -99,6 +107,8 @@ OverworldScene ──encuentro──▶ BattleScene (wake) ──resultado──
 
 ## Límites conocidos
 
+- **Arte externo:** los packs de Kenney traen un solo fotograma por personaje y monstruo, así que el jugador no tiene 4 direcciones ni caminata propia (se simula un saltito) y los monstruos de combate son el mismo sprite reflejado de espaldas. Al escalar ×4 los píxeles de las criaturas son más grandes que los de la interfaz.
+- **Agua animada y hierba alta:** los packs usados no las traen; se rellenan con arte generado (el script lo avisa).
 - Cada criatura tiene 4 movimientos fijos y no hay estados alterados; captura, inventario, tienda y guardado quedan fuera del alcance.
 - El texto es solo en mayúsculas (la fuente propia no tiene minúsculas).
 - La música es chiptune sintetizada; está verificada por medición de nivel, no por escucha.
