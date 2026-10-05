@@ -2,7 +2,7 @@
 
 Juego de rol por turnos inspirado en Pokémon Rubí, hecho con **Phaser 3 (3.90) + Vite + TypeScript**. Dos mapas explorables, combates aleatorios en hierba alta, audio procedural y un pipeline de assets completo: **atlas de sprites, tilemaps de Tiled, fuente bitmap y object pooling**.
 
-**Arte:** el mundo (terreno, casas, árboles), el personaje y las criaturas vienen de packs **CC0 de Kenney** ([Tiny Town](https://kenney.nl/assets/tiny-town) y [Tiny Dungeon](https://kenney.nl/assets/tiny-dungeon)); la interfaz, la fuente, el agua, la hierba alta y el audio se generan por código. Ver [`CREDITS.md`](CREDITS.md). Sin material de Nintendo ni de terceros con copyright.
+**Arte:** por defecto todo el arte (mundo, personaje, criaturas, interfaz) y el audio se generan por código (`art/`) y se vuelcan a un **atlas editable** en `public/assets/atlas.png` + `atlas.json`: puedes abrirlo y cambiar personajes a mano. Opcionalmente se pueden importar los packs CC0 de Kenney (`npm run assets:kenney`, ver [`CREDITS.md`](CREDITS.md)). Sin material de Nintendo ni de terceros con copyright.
 
 ## Arranque rápido
 
@@ -10,8 +10,11 @@ Juego de rol por turnos inspirado en Pokémon Rubí, hecho con **Phaser 3 (3.90)
 npm install
 npm run dev          # http://localhost:5173
 
-# opcional: volver a descargar los packs de Kenney y regenerar los assets
-npm run assets:download && npm run assets
+# regenerar el atlas desde el arte procedural (sobrescribe public/assets/)
+npm run assets
+
+# opcional: usar los packs de Kenney
+npm run assets:download && npm run assets:kenney
 ```
 
 | Comando | Qué hace |
@@ -19,8 +22,8 @@ npm run assets:download && npm run assets
 | `npm run dev` | Servidor de desarrollo (Vite) |
 | `npm run build` | Comprobación de tipos + build de producción en `dist/` (rutas relativas) |
 | `npm run assets:download` | Descarga los packs CC0 de Kenney a `assets-src/kenney/` |
-| `npm run assets` | Importa los packs y regenera atlas, tileset, fuente y mapas de Tiled en `public/assets/` |
-| `npm run assets:procedural` | Lo mismo, pero con el arte original generado por código (`art/`) |
+| `npm run assets` | Regenera atlas, tileset, fuente y mapas de Tiled en `public/assets/` con el arte procedural (`art/`) |
+| `npm run assets:kenney` | Lo mismo, pero importando los packs de Kenney |
 | `npm test` | 51 tests (motor de combate, canciones, integridad de atlas y mapas) |
 | `npm run lint` | ESLint + typescript-eslint |
 | `npm run check` | lint + tests + build (lo mismo que ejecuta el CI) |
@@ -78,7 +81,7 @@ src/
   ui/                   PixelText, StatusBox, métricas de fuente, colores
 ```
 
-Flujo de datos: **packs de Kenney (o `art/`) + `tools/maps` → `npm run assets` → `public/assets/` → `PreloadScene` → escenas**.
+Flujo de datos: **`art/` (o packs de Kenney) + `tools/maps` → `npm run assets` → `public/assets/` → `PreloadScene` → escenas**.
 
 ```
 PreloadScene ──carga──▶ atlas · tileset · font.fnt · maps/*.json
@@ -107,7 +110,7 @@ OverworldScene ──encuentro──▶ BattleScene (wake) ──resultado──
 
 ## Límites conocidos
 
-- **Arte externo:** los packs de Kenney traen un solo fotograma por personaje y monstruo, así que el jugador no tiene 4 direcciones ni caminata propia (se simula un saltito) y los monstruos de combate son el mismo sprite reflejado de espaldas. Al escalar ×4 los píxeles de las criaturas son más grandes que los de la interfaz.
+- **Arte externo (solo con `assets:kenney`):** los packs de Kenney traen un solo fotograma por personaje y monstruo, así que el jugador no tiene 4 direcciones ni caminata propia (se simula un saltito) y los monstruos de combate son el mismo sprite reflejado de espaldas. Al escalar ×4 los píxeles de las criaturas son más grandes que los de la interfaz.
 - **Agua animada y hierba alta:** los packs usados no las traen; se rellenan con arte generado (el script lo avisa).
 - Cada criatura tiene 4 movimientos fijos y no hay estados alterados; captura, inventario, tienda y guardado quedan fuera del alcance.
 - El texto es solo en mayúsculas (la fuente propia no tiene minúsculas).
