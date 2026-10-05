@@ -14,6 +14,7 @@
     "sheet": "tsx tools/export-sheet.ts",
     "shot": "tsx tools/screenshot.ts",
     "assets:download": "tsx tools/download-kenney.ts",
+    "assets:import": "tsx tools/import-atlas.ts assets-src/custom/atlas.jpg",
     "assets:kenney": "tsx tools/build-assets.ts --source=kenney"
   },
   "dependencies": {

@@ -902,7 +902,7 @@
     }
   },
   "meta": {
-    "app": "pokimon2/tools/build-assets.ts",
+    "app": "pokimon2/tools/import-atlas.ts",
     "version": "1.0",
     "image": "atlas.png",
     "format": "RGBA8888",
