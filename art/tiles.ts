@@ -151,6 +151,15 @@ function house(): Sprite[] {
   return out;
 }
 
+/** Marca para la capa de colisión en Tiled (la capa va oculta en el juego). */
+function solidMarker(): Sprite {
+  const g = new Grid(TILE, TILE);
+  g.rect(0, 0, TILE, TILE, 'R');
+  g.rect(1, 1, TILE - 2, TILE - 2, '.');
+  g.line(1, 1, 14, 14, 'R'); g.line(14, 1, 1, 14, 'R');
+  return g.toSprite();
+}
+
 // ---------- registro ----------
 const t = tree();
 const h = house();
@@ -164,6 +173,7 @@ export const TILE_DEFS: [string, Sprite][] = [
   ['water0', WATER_FRAMES[0]], ['water1', WATER_FRAMES[1]], ['water2', WATER_FRAMES[2]],
   ['treeTop', t.top], ['treeBottom', t.bottom], ['forest', forest()], ['rock', rock()], ['fence', fence()],
   ...h.map((s, i) => [`house${i}`, s] as [string, Sprite]),
+  ['solid', solidMarker()],
 ];
 
 export const TILE_INDEX: Record<string, number> = Object.fromEntries(TILE_DEFS.map(([n], i) => [n, i]));
