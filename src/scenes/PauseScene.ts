@@ -15,7 +15,7 @@ export class PauseScene extends Phaser.Scene {
   create(): void {
     this.closing = false;
     this.add.rectangle(0, 0, GAME_W, GAME_H, 0x14101f, 0.6).setOrigin(0);
-    const w = 156, h = 72, x = (GAME_W - w) / 2, y = (GAME_H - h) / 2;
+    const w = 156, h = 84, x = (GAME_W - w) / 2, y = (GAME_H - h) / 2;
     panel(this, x, y, w, h).setDepth(10);
     this.caption = menuText(this, 0, y + 9, 'PAUSA').setDepth(11);
     this.caption.setX(Math.round(GAME_W / 2 - this.caption.width / 2));
@@ -28,9 +28,18 @@ export class PauseScene extends Phaser.Scene {
     this.setCaption('PAUSA');
     this.menu.setItems([
       { label: 'CONTINUAR', run: () => this.resume() },
+      { label: 'MOCHILA', run: () => this.openParty() },
       { label: () => (audio.muted ? 'SONIDO: NO' : 'SONIDO: SI'), run: () => { audio.toggleMute(); this.menu.refresh(); } },
       { label: 'SALIR AL INICIO', run: () => this.showConfirm() },
     ]);
+  }
+
+  /** Abre la mochila encima de la pausa; al cerrarla se reactiva el menú (con un margen para no reusar la tecla). */
+  private openParty(): void {
+    this.menu.setEnabled(false);
+    this.scene.launch('Party', { onClose: () => { this.time.delayedCall(180, () => this.menu.setEnabled(true)); } });
+    this.scene.bringToTop('Party');
+    this.scene.bringToTop('UI');
   }
 
   private showConfirm(): void {
