@@ -5,15 +5,16 @@ import { SPECIES } from '../data/species';
 import { TYPE_NAMES, type TypeId } from '../data/types';
 import { audio } from '../systems/audio';
 import { expProgress, type Creature } from '../systems/creature';
-import { game, PARTY_MAX } from '../systems/gameState';
+import { game, makeLead, PARTY_MAX } from '../systems/gameState';
 import { COLOR } from '../ui/colors';
 import { menuText } from '../ui/menu';
 import { INK, PixelText } from '../ui/PixelText';
 
-export interface PartyInit { onClose?: () => void }
+/** `canSwap`: permite elegir el líder del equipo (en la pausa sí; en combate no, el combate ya está en marcha). */
+export interface PartyInit { onClose?: () => void; canSwap?: boolean }
 
 const TYPE_COLOR: Record<TypeId, number> = { normal: COLOR.x, fire: COLOR.P, water: COLOR.j, grass: COLOR.c };
-const LIST = { x: 4, y: 22, w: 80, rowH: 22 };
+const LIST = { x: 4, y: 22, w: 80, rowH: 20 };
 const DETAIL = { x: 88, y: 22, w: 148, h: 132 };
 
 /**
@@ -22,6 +23,8 @@ const DETAIL = { x: 88, y: 22, w: 148, h: 132 };
  */
 export class PartyScene extends Phaser.Scene {
   private onClose?: () => void;
+  private canSwap = true;
+  private ballsText?: PixelText;
   private index = 0;
   private rows: Phaser.GameObjects.GameObject[] = [];
   private detail: Phaser.GameObjects.GameObject[] = [];
@@ -31,14 +34,16 @@ export class PartyScene extends Phaser.Scene {
 
   constructor() { super('Party'); }
 
-  init(data: PartyInit): void { this.onClose = data.onClose; this.index = 0; this.closing = false; }
+  init(data: PartyInit): void { this.onClose = data.onClose; this.canSwap = data.canSwap ?? true; this.index = 0; this.closing = false; }
 
   create(): void {
     this.rows = []; this.detail = []; this.texts = [];
     this.add.rectangle(0, 0, GAME_W, GAME_H, 0x2a2140, 1).setOrigin(0).setDepth(0);
     this.add.rectangle(0, 0, GAME_W, 16, 0x1f1a2e, 1).setOrigin(0).setDepth(1);
     menuText(this, 6, 4, 'MOCHILA', '#f8f8f0').setDepth(2);
-    this.hint('Z / X: VOLVER', 118, 5);
+    this.hint(this.canSwap ? 'Z: LIDER   X: VOLVER' : 'Z / X: VOLVER', 96, 5);
+    this.ballsText = new PixelText(this, 6, 145, '', COLOR.Y, COLOR.K).setDepth(2);
+    this.texts.push(this.ballsText);
     this.cursor = this.add.image(0, 0, ATLAS, 'ui_cursor').setOrigin(0, 0.5).setDepth(5);
 
     const keys = this.input.keyboard!;
@@ -55,7 +60,9 @@ export class PartyScene extends Phaser.Scene {
     const n = game.party.length;
     if (e.code === 'ArrowUp' || e.code === 'KeyW') this.move(-1, n);
     else if (e.code === 'ArrowDown' || e.code === 'KeyS') this.move(1, n);
-    else if (['KeyX', 'Escape', 'Backspace', 'Enter', 'KeyZ', 'Space'].includes(e.code)) this.close();
+    else if (['Enter', 'KeyZ', 'Space'].includes(e.code) && this.canSwap) {
+      if (this.index > 0) { makeLead(this.index); this.index = 0; audio.sfx('confirm'); this.render(); }
+    } else if (['KeyX', 'Escape', 'Backspace', 'Enter', 'KeyZ', 'Space'].includes(e.code)) this.close();
   };
 
   private move(d: number, n: number): void {
@@ -79,17 +86,19 @@ export class PartyScene extends Phaser.Scene {
     [...this.rows, ...this.detail].forEach((o) => o.destroy());
     this.rows = []; this.detail = [];
     const party = game.party;
+    this.ballsText?.setText(`POKÉ BALL x${game.balls}`);
 
     for (let i = 0; i < PARTY_MAX; i++) {
       const y = LIST.y + i * LIST.rowH;
       const c = party[i];
       const sel = i === this.index && !!c;
       this.rows.push(this.add.rectangle(LIST.x, y, LIST.w, LIST.rowH - 2, sel ? 0xf8f8f0 : 0x3a2f55, c ? 1 : 0.6).setOrigin(0).setDepth(2));
-      this.rows.push(this.add.image(LIST.x + 5, y + 6, c ? 'ball_full' : 'ball_empty').setOrigin(0).setDepth(3));
-      if (!c) { this.text(this.rows, LIST.x + 20, y + 7, 'LIBRE', COLOR.v, null); continue; }
-      this.text(this.rows, LIST.x + 20, y + 3, SPECIES[c.speciesId].name, sel ? INK : COLOR.W, sel ? null : COLOR.K);
-      this.hpBar(this.rows, LIST.x + 20, y + 13, 32, c);
-      this.text(this.rows, LIST.x + 57, y + 10, `NV${c.level}`, sel ? INK : COLOR.W, sel ? null : COLOR.K);
+      this.rows.push(this.add.image(LIST.x + 5, y + 5, c ? 'ball_full' : 'ball_empty').setOrigin(0).setDepth(3));
+      if (!c) { this.text(this.rows, LIST.x + 20, y + 6, 'LIBRE', COLOR.v, null); continue; }
+      this.text(this.rows, LIST.x + 20, y + 2, SPECIES[c.speciesId].name, sel ? INK : COLOR.W, sel ? null : COLOR.K);
+      if (i === 0) this.text(this.rows, LIST.x + 68, y + 2, '*', sel ? COLOR.P : COLOR.Y, null);
+      this.hpBar(this.rows, LIST.x + 20, y + 11, 32, c);
+      this.text(this.rows, LIST.x + 57, y + 9, `NV${c.level}`, sel ? INK : COLOR.W, sel ? null : COLOR.K);
     }
     const sel = party[this.index];
     this.cursor.setVisible(!!sel).setPosition(LIST.x - 1, LIST.y + this.index * LIST.rowH + LIST.rowH / 2 - 1);

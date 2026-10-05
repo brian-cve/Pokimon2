@@ -1,14 +1,14 @@
 import Phaser from 'phaser';
-import { ATLAS, PLAYER_H, TILE } from '../config';
+import { ATLAS, GAME_H, GAME_W, PLAYER_H, TILE } from '../config';
 import { ENCOUNTER_RATE, rollEncounter } from '../data/encounters';
 import { mapKey } from '../data/maps';
 import { audio } from '../systems/audio';
-import { game, resetAfterDefeat } from '../systems/gameState';
+import { BALLS_MAX, game, healParty, resetAfterDefeat } from '../systems/gameState';
 import { DIR_VEC, type Dir } from '../systems/gridMovement';
 import { poolsFor } from '../systems/pool';
-import { flash, sweepClose, sweepOpen } from '../systems/transition';
+import { flash, sleep, sweepClose, sweepOpen } from '../systems/transition';
 import { measure } from '../ui/fontMetrics';
-import { PixelText } from '../ui/PixelText';
+import { PixelText, wrap } from '../ui/PixelText';
 import type { BattleInit, BattleResult } from './BattleScene';
 
 export interface OverworldInit { mapId: string; x?: number; y?: number; dir?: Dir }
@@ -46,6 +46,9 @@ export class OverworldScene extends Phaser.Scene {
   private ground!: Phaser.Tilemaps.TilemapLayer;
   private collision!: Phaser.Tilemaps.TilemapLayer;
   private warps: Warp[] = [];
+  /** Casillas interactuables ('x,y' → tipo: bed, chest...) y bloqueo mientras hay un diálogo o una escena. */
+  private interacts = new Map<string, string>();
+  private busy = false;
   private waterCells: [number, number][] = [];
   private waterGids: number[] = [];
   private waterFrame = 0;
@@ -57,6 +60,7 @@ export class OverworldScene extends Phaser.Scene {
     this.mapId = data.mapId;
     this.moving = false;
     this.transitioning = false;
+    this.busy = false;
     this.waterCells = [];
     this.waterGids = [];
   }
@@ -74,11 +78,13 @@ export class OverworldScene extends Phaser.Scene {
     // entidades: punto de aparición y warps (Tiled → capa de objetos "entities")
     const entities = tm.getObjectLayer('entities')?.objects ?? [];
     this.warps = [];
+    this.interacts.clear();
     let spawn = { x: 0, y: 0, dir: 'down' as Dir };
     for (const o of entities) {
       const p = bag(o.properties as TiledProps);
       const x = Math.floor((o.x ?? 0) / TILE), y = Math.floor((o.y ?? 0) / TILE);
       if (o.type === 'spawn') spawn = { x, y, dir: p.dir as Dir };
+      else if (o.type === 'interact') this.interacts.set(`${x},${y}`, String(p.kind));
       else if (o.type === 'warp') this.warps.push({ x, y, toMap: String(p.toMap), toX: Number(p.toX), toY: Number(p.toY), dir: p.dir as Dir });
     }
     this.tx = this.req.x ?? spawn.x; this.ty = this.req.y ?? spawn.y;
@@ -97,8 +103,13 @@ export class OverworldScene extends Phaser.Scene {
     this.updateGrassOverlay(this.tx, this.ty);
 
     const cam = this.cameras.main;
-    cam.setBounds(0, 0, tm.widthInPixels, tm.heightInPixels);
-    cam.startFollow(this.player, true, 1, 1, -TILE / 2 + 8, -(PLAYER_H - TILE) / 2 + 4);
+    if (tm.widthInPixels <= GAME_W && tm.heightInPixels <= GAME_H) {
+      // interior más pequeño que la pantalla: cámara fija con el mapa centrado
+      cam.setScroll(-Math.round((GAME_W - tm.widthInPixels) / 2), -Math.round((GAME_H - tm.heightInPixels) / 2));
+    } else {
+      cam.setBounds(0, 0, tm.widthInPixels, tm.heightInPixels);
+      cam.startFollow(this.player, true, 1, 1, -TILE / 2 + 8, -(PLAYER_H - TILE) / 2 + 4);
+    }
     cam.roundPixels = true;
     cam.fadeIn(250, 0, 0, 0);
 
@@ -107,6 +118,7 @@ export class OverworldScene extends Phaser.Scene {
     this.events.on('resume', this.onResume);
     this.events.once('shutdown', () => this.events.off('resume', this.onResume));
 
+    this.input.keyboard!.on('keydown', this.onInteractKey);
     this.input.keyboard!.on('keydown-ESC', this.openPause);
     this.input.keyboard!.on('keydown-P', this.openPause);
 
@@ -154,7 +166,7 @@ export class OverworldScene extends Phaser.Scene {
   }
 
   update(time: number): void {
-    if (this.moving || this.transitioning) return;
+    if (this.moving || this.transitioning || this.busy) return;
     const dir = this.heldDir();
     if (!dir) { this.player.setFrame(playerFrame(this.facing, 0)); this.bumping = false; return; }
 
@@ -235,11 +247,67 @@ export class OverworldScene extends Phaser.Scene {
     this.scene.bringToTop('UI');
   }
 
+  // ---------------------------------------------------------------- interacción y diálogo
+
+  private onInteractKey = (e: KeyboardEvent): void => {
+    if (!['Enter', 'Space', 'KeyZ'].includes(e.code)) return;
+    if (!this.scene.isActive() || this.moving || this.transitioning || this.busy || performance.now() - this.lastResume < 250) return;
+    const [dx, dy] = DIR_VEC[this.facing];
+    const kind = this.interacts.get(`${this.tx + dx},${this.ty + dy}`);
+    if (kind) void this.interact(kind);
+  };
+
+  private async interact(kind: string): Promise<void> {
+    this.busy = true;
+    if (kind === 'bed') {
+      await this.talk(['Una cama muy cómoda. ¡A descansar un rato!']);
+      const cam = this.cameras.main;
+      cam.fadeOut(600, 0, 0, 0);
+      await sleep(this, 700);
+      healParty();
+      audio.sfx('levelUp');
+      await sleep(this, 900);
+      cam.fadeIn(600, 0, 0, 0);
+      await sleep(this, 650);
+      await this.talk(['¡Has descansado! Tu equipo se recuperó por completo.']);
+    } else if (kind === 'chest') {
+      const missing = BALLS_MAX - game.balls;
+      if (missing <= 0) await this.talk(['El cofre está vacío.']);
+      else {
+        game.balls = BALLS_MAX;
+        audio.sfx('confirm');
+        await this.talk([`¡Encontraste ${missing} POKÉ BALL${missing > 1 ? 'S' : ''} en el cofre!`, `Ahora llevas ${game.balls}.`]);
+      }
+    }
+    this.busy = false;
+  }
+
+  /** Cuadro de diálogo del mundo: una línea por pulsación de confirmar. */
+  private async talk(lines: string[]): Promise<void> {
+    const pools = poolsFor(this);
+    const bg = pools.image('ui_dialog', 0, 112).setScrollFactor(0).setDepth(900);
+    const text = new PixelText(this, 10, 121, '').setScrollFactor(0).setDepth(901);
+    const arrow = pools.image('ui_more', 224, 146).setScrollFactor(0).setDepth(902);
+    for (const line of lines) {
+      text.setText(wrap(line, 218).slice(0, 2).join('\n'));
+      await new Promise<void>((res) => {
+        const onKey = (e: KeyboardEvent) => {
+          if (!['Enter', 'Space', 'KeyZ', 'KeyX'].includes(e.code)) return;
+          this.input.keyboard!.off('keydown', onKey);
+          res();
+        };
+        // se registra un instante después para no consumir la pulsación que abrió el diálogo
+        this.time.delayedCall(120, () => this.input.keyboard!.on('keydown', onKey));
+      });
+    }
+    text.release(); pools.releaseImage(bg); pools.releaseImage(arrow);
+  }
+
   /** Menú de pausa: solo con el jugador quieto y sin transiciones en curso. */
   private lastResume = 0;
   private openPause = (): void => {
     // el margen evita reabrir la pausa con la misma pulsación de Esc que la cerró
-    if (!this.scene.isActive() || this.moving || this.transitioning || performance.now() - this.lastResume < 250) return;
+    if (!this.scene.isActive() || this.moving || this.transitioning || this.busy || performance.now() - this.lastResume < 250) return;
     audio.sfx('select');
     this.scene.pause();
     this.scene.launch('Pause');

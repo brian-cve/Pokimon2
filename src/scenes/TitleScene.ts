@@ -38,7 +38,7 @@ export class TitleScene extends Phaser.Scene {
     this.showMain();
 
     this.scene.bringToTop('UI');
-    audio.playMusic('overworld');
+    audio.playMusic('title');
   }
 
   private showMain(): void {

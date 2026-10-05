@@ -7,6 +7,7 @@ import type { MapData, Warp, Dir } from './types';
  *  ,  camino     "  hierba alta     ~  agua
  *  T  árbol suelto (2 casillas de alto)     F  bosque denso (borde del mapa)     R  roca     =  valla
  *  H  esquina sup-izq. de una casa 3x3 (las otras 8 casillas se escriben 'h')
+ *  E  igual que H, pero la puerta (centro de la fila de abajo) es transitable y se puede cruzar con un warp
  */
 
 export interface MapSource {
@@ -51,16 +52,18 @@ export function parseMap(src: MapSource): MapData {
         case 'R': objects[y][x] = idx('rock'); collision[y][x] = 1; break;
         case '=': objects[y][x] = idx('fence'); collision[y][x] = 1; break;
         case 'H':
+        case 'E':
           for (let j = 0; j < 3; j++) for (let i = 0; i < 3; i++) {
-            if (src.rows[y + j]?.[x + i] !== (i === 0 && j === 0 ? 'H' : 'h')) throw new Error(`${src.id}: casa mal formada en (${x},${y})`);
+            if (src.rows[y + j]?.[x + i] !== (i === 0 && j === 0 ? ch : 'h')) throw new Error(`${src.id}: casa mal formada en (${x},${y})`);
             objects[y + j][x + i] = idx(`house${j * 3 + i}`); collision[y + j][x + i] = 1;
           }
+          if (ch === 'E') collision[y + 2][x + 1] = 0; // puerta
           break;
         case 'h': break; // cubierta por la 'H' de su esquina
         default: throw new Error(`${src.id}: carácter '${ch}' desconocido en (${x},${y})`);
       }
     });
   });
-  return { id: src.id, name: src.name, width, height, ground, objects, collision, warps: src.warps ?? [], encounterTable: src.encounterTable, spawn: src.spawn };
+  return { id: src.id, name: src.name, width, height, ground, objects, collision, warps: src.warps ?? [], interacts: [], encounterTable: src.encounterTable, spawn: src.spawn };
 }
 

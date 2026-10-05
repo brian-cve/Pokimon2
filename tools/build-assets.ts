@@ -17,8 +17,8 @@ import { TILE, TILE_DEFS } from '../art/tiles';
 import { SPEC } from '../art/ui';
 import { fromSprite, type Drawable } from './drawable';
 import { loadKenney } from './external/kenney';
-import { MAPS } from './maps';
-import { TILESET_FILE, toTiled } from './maps/tiled';
+import { writeMaps } from './build-maps';
+import { TILESET_FILE } from './maps/tiled';
 
 const OUT = 'public/assets';
 const PAD = 2;       // margen transparente entre frames: evita sangrado al escalar
@@ -117,7 +117,7 @@ ${chars.join('\n')}
 `);
 
 // ---------------------------------------------------------------- mapas de Tiled
-for (const m of Object.values(MAPS)) writeFileSync(`${OUT}/maps/${m.id}.json`, JSON.stringify(toTiled(m)));
+const mapIds = writeMaps(OUT);
 
-console.log(`fuente de arte: ${source} · atlas ${MAX_W}x${atlasH} (${placed.length} frames) · tileset ${TILE_DEFS.length} tiles · mapas: ${Object.keys(MAPS).join(', ')}`);
+console.log(`fuente de arte: ${source} · atlas ${MAX_W}x${atlasH} (${placed.length} frames) · tileset ${TILE_DEFS.length} tiles · mapas: ${mapIds.join(', ')}`);
 if (fallbacks.length) console.log(`  relleno con arte generado (no está en los packs externos): ${[...new Set(fallbacks)].join(', ')}`);

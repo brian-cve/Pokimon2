@@ -114,8 +114,8 @@ out.set('solid', solid);
 // ---------------------------------------------------------------- tileset (orden = TILE_DEFS)
 const tileset = createCanvas(TILE_DEFS.length * TILE, TILE), sx = tileset.getContext('2d');
 TILE_DEFS.forEach(([name], i) => {
-  const t = out.get(name);
-  if (!t) throw new Error(`falta el tile '${name}'`);
+  // lo que la hoja dibujada no trae (colisión, interiores) se completa con el tile procedural
+  const t = out.get(name) ?? (() => { const k = tile(); fromSprite(TILE_DEFS[i][1]).draw(k.getContext('2d'), 0, 0); return k; })();
   sx.drawImage(t, i * TILE, 0);
 });
 writeFileSync('public/assets/tileset.png', tileset.toBuffer('image/png'));

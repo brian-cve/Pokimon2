@@ -23,6 +23,7 @@ npm run assets:download && npm run assets:kenney
 | `npm run build` | Comprobación de tipos + build de producción en `dist/` (rutas relativas) |
 | `npm run assets:download` | Descarga los packs CC0 de Kenney a `assets-src/kenney/` |
 | `npm run assets` | Regenera atlas, tileset, fuente y mapas de Tiled en `public/assets/` con el arte procedural (`art/`) |
+| `npm run maps` | Regenera solo los mapas de Tiled (no toca atlas ni tileset). **Usa esto en vez de `npm run assets`** si trabajas con las imágenes de `assets-src/custom` |
 | `npm run assets:import` | Reconstruye el atlas desde `assets-src/custom/atlas.jpg` |
 | `npm run assets:import-tileset` | Reconstruye el tileset desde `assets-src/custom/tileset2.jpg` |
 | `npm run assets:kenney` | Lo mismo, pero importando los packs de Kenney |
@@ -35,6 +36,10 @@ npm run assets:download && npm run assets:kenney
 Controles: **flechas/WASD** mover · **Z/Enter/Espacio** confirmar · **X/Backspace** volver · **Esc/P** pausa · **M** silenciar.
 
 **Combate:** cada movimiento tiene su animación (`src/systems/moveFx.ts`: embestidas, zarpazos, colmillos, bolas de fuego, chorros de llama y agua, ondas, lianas, remolino de hojas) con partículas procedurales (`art/fx.ts`), retroceso con destello y sacudida de cámara según la eficacia. **MOCHILA** y **EQUIPO** del combate, y **MOCHILA** de la pausa, abren la ficha del equipo (`PartyScene`).
+
+**Captura:** en combate, MOCHILA → POKÉ BALL lanza una ball (10 al empezar). La probabilidad sube cuando el rival tiene pocos PS y según el `catchRate` de la especie; la ball se sacude hasta 3 veces antes de atrapar o soltar a la criatura (que contraataca). Las capturadas pasan al equipo (máx. 6) y se pueden elegir como líder desde la **MOCHILA** de la pausa (Z). EQUIPO, en combate, muestra la ficha del equipo.
+
+**Casa de Villa Brasa:** la casa de la izquierda se puede visitar (puerta → interior). Con Z/Enter de frente: la **cama** cura a todo el equipo y el **cofre** repone las Poké Balls. El interior es el mapa `house` (`tools/maps/house.ts`, tiles de `art/interior.ts`).
 
 **Flujo de juego:** `Preload → Title (JUGAR · CONTROLES · SONIDO) → Overworld ⇄ Battle`; desde el mundo, **Esc/P** abre la pausa (CONTINUAR · SONIDO · SALIR AL INICIO, con confirmación). El logo *RUBYMON* y el contador de equipo (6 pokéballs arriba a la izquierda) se generan por código (`src/ui/logo.ts`, `art/hud.ts`). Los menús usan la fuente *Press Start 2P* (OFL, vía `@fontsource`); el texto de combate sigue con la fuente bitmap propia.
 

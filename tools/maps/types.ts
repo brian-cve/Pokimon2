@@ -23,6 +23,8 @@ export interface MapData {
   /** 1 = bloqueado. */
   collision: number[][];
   warps: Warp[];
+  /** Casillas con las que se interactúa pulsando confirmar de frente (cama, cofre...). */
+  interacts: { x: number; y: number; kind: string }[];
   /** Tabla de encuentros (id de tabla en data/encounters.ts). */
   encounterTable: string;
   spawn: { x: number; y: number; dir: Dir };
