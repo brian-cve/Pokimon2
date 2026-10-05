@@ -1,0 +1,13 @@
+# Dependencias y build
+node_modules/
+dist/
+
+# Generado por npm run sheet / npm run shot
+out/
+
+# Sistema y editores
+.DS_Store
+*.log
+.vite/
+.idea/
+.vscode/
