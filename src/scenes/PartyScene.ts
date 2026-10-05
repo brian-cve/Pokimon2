@@ -151,7 +151,7 @@ export class PartyScene extends Phaser.Scene {
     this.text(d, x + 8, y + 94, 'MOVIMIENTOS', COLOR.v);
     c.moves.forEach((m, i) => {
       const data = MOVES[m.id];
-      const mx = x + 6 + (i % 2) * 72, my = y + 105 + Math.floor(i / 2) * 12;
+      const mx = x + 6 + (i % 2) * 68, my = y + 105 + Math.floor(i / 2) * 12;
       d.push(this.add.rectangle(mx - 2, my + 1, 2, 7, TYPE_COLOR[data.type], 1).setOrigin(0).setDepth(3));
       this.text(d, mx + 2, my, data.name, INK);
     });
