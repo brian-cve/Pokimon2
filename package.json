@@ -15,6 +15,7 @@
     "shot": "tsx tools/screenshot.ts",
     "assets:download": "tsx tools/download-kenney.ts",
     "maps": "tsx tools/build-maps.ts",
+    "gifs": "tsx tools/record-gifs.ts",
     "assets:import": "tsx tools/import-atlas.ts assets-src/custom/atlas.jpg",
     "assets:import-tileset": "tsx tools/import-tileset.ts",
     "assets:kenney": "tsx tools/build-assets.ts --source=kenney"
@@ -29,6 +30,7 @@
     "@types/node": "^26.6.4",
     "eslint": "^10.12.0",
     "fflate": "^0.8.3",
+    "gifenc": "^1.0.3",
     "globals": "^17.13.0",
     "playwright": "^1.63.0",
     "tsx": "^4.23.15",
