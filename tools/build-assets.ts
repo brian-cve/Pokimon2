@@ -5,8 +5,8 @@
 //   public/assets/maps/*.json              mapas de Tiled (capas, propiedades de tile, objetos)
 //
 // Fuente del arte del mundo (tiles, jugador y criaturas):
-//   npm run assets                 arte externo CC0 de Kenney (antes: npm run assets:download)  [por defecto]
-//   npm run assets:procedural      arte original generado por código (carpeta art/)
+//   npm run assets                 arte original generado por código (carpeta art/)  [por defecto]
+//   npm run assets:kenney          arte externo CC0 de Kenney (requiere npm run assets:download)
 // La interfaz (cajas, cursor, fondo de combate, efectos) y la fuente siempre se generan por código.
 import { createCanvas, type Canvas } from '@napi-rs/canvas';
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
@@ -23,7 +23,7 @@ import { TILESET_FILE, toTiled } from './maps/tiled';
 const OUT = 'public/assets';
 const PAD = 2;       // margen transparente entre frames: evita sangrado al escalar
 const MAX_W = 512;
-const source = process.argv.includes('--source=procedural') ? 'procedural' : 'kenney';
+const source = process.argv.includes('--source=kenney') ? 'kenney' : 'procedural';
 mkdirSync(`${OUT}/maps`, { recursive: true });
 
 const save = (file: string, canvas: Canvas) => writeFileSync(`${OUT}/${file}`, canvas.toBuffer('image/png'));
