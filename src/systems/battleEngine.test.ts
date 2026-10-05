@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { Battle, calcDamage, escapeOdds, gainedExp } from './battleEngine';
+import { Battle, calcDamage, catchChance, escapeOdds, gainedExp } from './battleEngine';
 import { createCreature, expForLevel } from './creature';
 import { MOVES } from '../data/moves';
 import { effectiveness } from '../data/types';
@@ -129,5 +129,29 @@ describe('encuentros', () => {
       expect(r.level).toBeGreaterThanOrEqual(5);
       expect(r.level).toBeLessThanOrEqual(8);
     }
+  });
+});
+
+describe('captura', () => {
+  it('la probabilidad sube al bajar los PS y con el catchRate', () => {
+    const full = createCreature('brasito', 5);
+    const low = { ...createCreature('brasito', 5), hp: 1 };
+    expect(catchChance(low)).toBeGreaterThan(catchChance(full));
+    expect(catchChance({ ...createCreature('peluson', 5) })).toBeGreaterThan(catchChance(full));
+    expect(catchChance(low)).toBeLessThanOrEqual(0.95);
+  });
+  it('con rng = 0 la ball atrapa (3 sacudidas) y termina el combate', () => {
+    const b = new Battle(createCreature('brasito', 5), createCreature('hojin', 4), () => 0);
+    const ev = b.resolveTurn({ kind: 'ball' });
+    expect(ev).toContainEqual({ t: 'catch', shakes: 3, caught: true });
+    expect(ev.at(-1)).toEqual({ t: 'end', result: 'catch' });
+    expect(b.over).toBe(true);
+  });
+  it('con rng alto la criatura se escapa y contraataca', () => {
+    const b = new Battle(createCreature('brasito', 5), createCreature('hojin', 4), () => 0.99);
+    const ev = b.resolveTurn({ kind: 'ball' });
+    expect(ev).toContainEqual({ t: 'catch', shakes: 0, caught: false });
+    expect(ev.some((e) => e.t === 'move' && e.side === 'enemy')).toBe(true);
+    expect(b.over).toBe(false);
   });
 });

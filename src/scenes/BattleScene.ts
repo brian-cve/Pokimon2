@@ -6,16 +6,16 @@ import { TYPE_NAMES, type TypeId } from '../data/types';
 import { audio } from '../systems/audio';
 import { Battle, type Action, type BattleEvent, type Side } from '../systems/battleEngine';
 import { createCreature, type Creature } from '../systems/creature';
-import { game } from '../systems/gameState';
+import { addToParty, game } from '../systems/gameState';
 import { poolsFor } from '../systems/pool';
-import { dust, playMoveFx, recoil, sparkle } from '../systems/moveFx';
+import { burst, dust, impactStar, playMoveFx, recoil, sparkle } from '../systems/moveFx';
 import { sleep, sweepOpen } from '../systems/transition';
 import { COLOR } from '../ui/colors';
 import { INK, PixelText, wrap } from '../ui/PixelText';
 import { StatusBox } from '../ui/StatusBox';
 
 export interface BattleInit { species: string; level: number }
-export type BattleResult = 'win' | 'lose' | 'run';
+export type BattleResult = 'win' | 'lose' | 'run' | 'catch';
 type Act = 'up' | 'down' | 'left' | 'right' | 'ok' | 'back';
 type Phase = 'intro' | 'message' | 'actions' | 'moves' | 'result' | 'exit';
 
@@ -60,6 +60,9 @@ export class BattleScene extends Phaser.Scene {
   /** Mientras la mochila está abierta (y un instante después) el combate ignora el teclado. */
   private overlayUntil = 0;
   private overlayOpen = false;
+  /** Poké Ball en pantalla durante un intento de captura. */
+  private ball?: Phaser.GameObjects.Image;
+  private joined = false;
 
   constructor() { super('Battle'); }
 
@@ -101,7 +104,10 @@ export class BattleScene extends Phaser.Scene {
     this.startLevel = this.playerC.level;
     this.phase = 'intro';
 
-    this.enemySprite.setTexture(ATLAS, `${this.enemyC.speciesId}_front`).setPosition(OFFSCREEN_RIGHT, ENEMY_POS.y).setAlpha(1);
+    this.ball?.destroy();
+    this.ball = undefined;
+    this.joined = false;
+    this.enemySprite.setTexture(ATLAS, `${this.enemyC.speciesId}_front`).setPosition(OFFSCREEN_RIGHT, ENEMY_POS.y).setAlpha(1).setScale(1).clearTint();
     this.playerSprite.setTexture(ATLAS, `${this.playerC.speciesId}_back`).setPosition(OFFSCREEN_LEFT, PLAYER_POS.y).setAlpha(1);
     this.enemyBox.setCreature(this.enemyC);
     this.playerBox.setCreature(this.playerC);
@@ -143,6 +149,7 @@ export class BattleScene extends Phaser.Scene {
       const act = await this.chooseAction();
       let action: Action;
       if (act === 'run') action = { kind: 'run' };
+      else if (act === 'ball') { game.balls--; action = { kind: 'ball' }; }
       else if (this.battle.mustStruggle()) {
         await this.say('¡No quedan PP en ningún movimiento!');
         action = { kind: 'fight', moveIndex: 0 };
@@ -166,6 +173,7 @@ export class BattleScene extends Phaser.Scene {
           break;
         case 'move': await this.attack(e.side, e.moveId); break;
         case 'hit': await this.hit(e); break;
+        case 'catch': await this.catchAnim(e); break;
         case 'faint': await this.faint(e.side); break;
         case 'exp': this.expGained += e.amount; await this.playerBox.tweenExp(e.from, e.to); break;
         case 'levelUp': await this.levelUp(e); break;
@@ -177,6 +185,7 @@ export class BattleScene extends Phaser.Scene {
   private async finish(): Promise<void> {
     const result = this.result ?? 'run';
     this.phase = 'result';
+    if (result === 'catch') this.joined = addToParty(this.enemyC);
     if (result !== 'run') await this.showResultPanel(result);
     this.phase = 'exit';
     await new Promise<void>((res) => { this.cameras.main.fadeOut(250, 0, 0, 0); this.cameras.main.once('camerafadeoutcomplete', () => res()); });
@@ -250,12 +259,12 @@ export class BattleScene extends Phaser.Scene {
   /** MOCHILA / EQUIPO: ficha del equipo como overlay (solo lectura). */
   private openParty(): void {
     this.overlayOpen = true;
-    this.scene.launch('Party', { onClose: () => { this.overlayOpen = false; this.overlayUntil = performance.now() + 200; } });
+    this.scene.launch('Party', { canSwap: false, onClose: () => { this.overlayOpen = false; this.overlayUntil = performance.now() + 200; } });
     this.scene.bringToTop('Party');
     this.scene.bringToTop('UI');
   }
 
-  private async chooseAction(): Promise<'fight' | 'run'> {
+  private async chooseAction(): Promise<'fight' | 'run' | 'ball'> {
     this.phase = 'actions';
     this.clearMenu();
     this.dialogText.setVisible(false);
@@ -275,8 +284,13 @@ export class BattleScene extends Phaser.Scene {
       const a = await this.waitAct(() => true).promise;
       if (a === 'left' || a === 'right') { this.cursor ^= 1; audio.sfx('select'); }
       else if (a === 'up' || a === 'down') { this.cursor ^= 2; audio.sfx('select'); }
-      else if (a === 'ok' && (this.cursor === 1 || this.cursor === 2)) { audio.sfx('confirm'); this.openParty(); }
-      else if (a === 'ok' && options[this.cursor][1]) {
+      else if (a === 'ok' && this.cursor === 2) { audio.sfx('confirm'); this.openParty(); }
+      else if (a === 'ok' && this.cursor === 1) {
+        audio.sfx('confirm');
+        this.clearMenu();
+        if (await this.chooseBag()) return 'ball';
+        return this.chooseAction(); // volver: se redibuja el menú
+      } else if (a === 'ok' && options[this.cursor][1]) {
         audio.sfx('confirm');
         const choice = this.cursor === 0 ? 'fight' : 'run';
         this.clearMenu();
@@ -319,7 +333,83 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
+  /** MOCHILA del combate: de momento solo Poké Balls. Devuelve true si se elige lanzar una. */
+  private async chooseBag(): Promise<boolean> {
+    this.phase = 'moves';
+    this.menuImage('ui_moves', 0, 112, 110);
+    this.menuImage('ui_moveinfo', 168, 112, 110);
+    const noBalls = game.balls <= 0;
+    this.menuText(14, 124, `POKÉ BALL  x${game.balls}`, noBalls ? DISABLED : INK, noBalls ? null : undefined);
+    this.menuText(14, 140, 'VOLVER');
+    const info = this.menuText(176, 121, 'ATRAPA\nCRIATURAS');
+    const cursor = this.menuImage('ui_cursor', 0, 0, 112);
+    let i = 0;
+    const place = () => cursor.setPosition(6, 125 + i * 16);
+    place();
+    for (;;) {
+      const a = await this.waitAct(() => true).promise;
+      if (a === 'up' || a === 'down') { i ^= 1; audio.sfx('select'); place(); }
+      else if (a === 'back') { audio.sfx('cancel'); this.clearMenu(); return false; }
+      else if (a === 'ok') {
+        if (i === 1) { audio.sfx('cancel'); this.clearMenu(); return false; }
+        if (noBalls) { info.setText('SIN BALLS').setColor(COLOR.R); continue; }
+        audio.sfx('confirm');
+        this.clearMenu();
+        return true;
+      }
+    }
+  }
+
   // ---------------------------------------------------------------- animaciones
+
+  /** Lanzamiento de la Poké Ball: arco, la criatura se encoge dentro, cae, se sacude y se abre o queda cerrada. */
+  private async catchAnim(e: Extract<BattleEvent, { t: 'catch' }>): Promise<void> {
+    const ball = this.add.image(this.playerSprite.x + 14, this.playerSprite.y - 44, 'ball_full').setDepth(80).setScale(2.4);
+    this.ball = ball;
+    const from = { x: ball.x, y: ball.y };
+    const to = { x: this.enemySprite.x, y: this.enemySprite.y - 48 };
+    const enemy = this.enemySprite;
+    const run = (cfg: Phaser.Types.Tweens.TweenBuilderConfig) => new Promise<void>((res) => this.tweens.add({ ...cfg, onComplete: () => res() }));
+
+    // 1) arco hasta la criatura, girando
+    const o = { t: 0 };
+    await run({ targets: o, t: 1, duration: 560, ease: 'Sine.easeOut', onUpdate: () => {
+      ball.setPosition(from.x + (to.x - from.x) * o.t, from.y + (to.y - from.y) * o.t - Math.sin(o.t * Math.PI) * 46);
+      ball.setAngle(o.t * 720);
+    } });
+    // 2) se abre: destello rojo y la criatura se encoge hacia la ball
+    audio.sfx('hit');
+    void impactStar(this, to, 1.6);
+    enemy.setTintFill(0xf06058);
+    await run({ targets: enemy, scale: 0, x: to.x, y: to.y + 6, duration: 380, ease: 'Quad.easeIn' });
+    ball.setAngle(0);
+    // 3) cae al suelo con un rebote
+    const ground = ENEMY_POS.y - 8;
+    await run({ targets: ball, y: ground, duration: 520, ease: 'Bounce.easeOut' });
+    // 4) sacudidas
+    for (let i = 0; i < e.shakes; i++) {
+      await sleep(this, 380);
+      audio.sfx('bump');
+      await run({ targets: ball, angle: -28, duration: 130, yoyo: true, ease: 'Sine.easeInOut' });
+      await run({ targets: ball, angle: 28, duration: 130, yoyo: true, ease: 'Sine.easeInOut' });
+    }
+    await sleep(this, 420);
+    if (e.caught) {
+      audio.sfx('levelUp');
+      audio.duck(1400);
+      ball.setTint(0x9090a8);
+      void burst(this, { x: ball.x, y: ball.y }, 'fxp_star', 8, { speed: 30, life: 600, tint: COLOR.Y });
+      await sleep(this, 500);
+    } else {
+      // se rompe: la ball se abre y la criatura reaparece
+      audio.sfx('miss');
+      void burst(this, { x: ball.x, y: ball.y }, 'fxp_dot', 10, { speed: 24, life: 300 });
+      ball.destroy();
+      this.ball = undefined;
+      enemy.setPosition(ENEMY_POS.x, ENEMY_POS.y).clearTint();
+      await run({ targets: enemy, scale: 1, duration: 280, ease: 'Back.easeOut' });
+    }
+  }
 
   private slide(target: Phaser.GameObjects.Components.Transform, x: number, duration: number): Promise<void> {
     return new Promise((res) => this.tweens.add({ targets: target, x, duration, ease: 'Sine.easeOut', onComplete: () => res() }));
@@ -367,7 +457,7 @@ export class BattleScene extends Phaser.Scene {
     await this.playerBox.tweenExp(0, e.progress);
   }
 
-  private async showResultPanel(result: 'win' | 'lose'): Promise<void> {
+  private async showResultPanel(result: 'win' | 'lose' | 'catch'): Promise<void> {
     this.phase = 'result';
     this.clearMenu();
     const pools = poolsFor(this);
@@ -375,11 +465,14 @@ export class BattleScene extends Phaser.Scene {
     this.menu.push(() => pools.releaseImage(dim));
     this.tweens.add({ targets: dim, alpha: 0.55, duration: 250 });
     this.menuImage('ui_panel', 40, 40, 201);
-    const win = result === 'win';
+    const win = result !== 'lose';
     audio.sfx(win ? 'win' : 'lose');
     audio.duck(2200);
-    this.menuText(52, 48, win ? '¡Victoria!' : '¡Derrota!', win ? COLOR.P : COLOR.S).setDepth(202);
-    const lines = win
+    this.menuText(52, 48, result === 'catch' ? '¡Capturado!' : win ? '¡Victoria!' : '¡Derrota!', win ? COLOR.P : COLOR.S).setDepth(202);
+    const ename = SPECIES[this.enemyC.speciesId].name.toUpperCase();
+    const lines = result === 'catch'
+      ? (this.joined ? `${ename} se une\na tu equipo.` : `Equipo lleno:\n${ename} se fue.`)
+      : win
       ? `EXP +${this.expGained}   NIVEL ${this.playerC.level}${this.playerC.level > this.startLevel ? '\n¡Has subido de nivel!' : ''}`
       : 'Perdiste el combate.\nVuelves al pueblo.';
     this.menuText(52, 62, lines).setDepth(202);

@@ -28,6 +28,10 @@ export function toTiled(m: MapData) {
     id: 10 + wi * 10 + ti, name: `warp_${w.toMap}`, type: 'warp', x: x * TILE, y: y * TILE, width: TILE, height: TILE, rotation: 0, visible: true,
     properties: [prop('toMap', w.toMap), prop('toX', w.toX), prop('toY', w.toY), prop('dir', w.dir)],
   })));
+  const interactObjects = m.interacts.map((it, i) => ({
+    id: 60 + i, name: it.kind, type: 'interact', x: it.x * TILE, y: it.y * TILE, width: TILE, height: TILE, rotation: 0, visible: true,
+    properties: [prop('kind', it.kind)],
+  }));
   return {
     type: 'map', version: '1.10', tiledversion: '1.10.2', orientation: 'orthogonal', renderorder: 'right-down', infinite: false,
     compressionlevel: -1, width: m.width, height: m.height, tilewidth: TILE, tileheight: TILE, nextlayerid: 5, nextobjectid: 100,
@@ -41,6 +45,7 @@ export function toTiled(m: MapData) {
         objects: [
           { id: 1, name: 'spawn', type: 'spawn', x: m.spawn.x * TILE, y: m.spawn.y * TILE, width: TILE, height: TILE, rotation: 0, visible: true, properties: [prop('dir', m.spawn.dir)] },
           ...warpObjects,
+          ...interactObjects,
         ],
       },
     ],

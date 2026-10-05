@@ -1,4 +1,5 @@
 import { Grid, rng } from './grid';
+import { INTERIOR_TILE_DEFS } from './interior';
 import { slice, validateSprite, type Sprite } from './pixmap';
 
 export const TILE = 16;
@@ -174,6 +175,7 @@ export const TILE_DEFS: [string, Sprite][] = [
   ['treeTop', t.top], ['treeBottom', t.bottom], ['forest', forest()], ['rock', rock()], ['fence', fence()],
   ...h.map((s, i) => [`house${i}`, s] as [string, Sprite]),
   ['solid', solidMarker()],
+  ...INTERIOR_TILE_DEFS,
 ];
 
 export const TILE_INDEX: Record<string, number> = Object.fromEntries(TILE_DEFS.map(([n], i) => [n, i]));

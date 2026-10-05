@@ -3,7 +3,7 @@
 export type Wave = 'pulse12' | 'pulse25' | 'pulse50' | 'triangle' | 'noise';
 export interface Channel { wave: Wave; vol: number; steps: string[] }
 export interface Song { bpm: number; channels: Channel[] }
-export type SongId = 'overworld' | 'battle';
+export type SongId = 'overworld' | 'battle' | 'title';
 
 const bars = (...b: string[]): string[] => b.join(' ').split(/\s+/);
 
@@ -51,5 +51,22 @@ const battle: Song = {
   ],
 };
 
-export const SONGS: Record<SongId, Song> = { overworld, battle };
+// ---- Título: Re menor, épica y marcada, 138 bpm (Dm Bb C A ×2), hermana de la música de combate ----
+const title: Song = {
+  bpm: 138,
+  channels: [
+    { wave: 'pulse25', vol: 0.5, steps: bars(
+      'D5 . F5 A5 D6 . C6 A5', 'Bb5 . A5 F5 D5 . F5 A5', 'G5 . C6 E6 G6 . E6 C6', 'A5 . C#6 E6 A6 . E6 C#6',
+      'D6 . C6 A5 F5 . A5 D6', 'D6 . C6 Bb5 F5 . Bb5 D6', 'E6 . D6 C6 G5 . C6 E6', 'C#6 . E6 . A5 . . .') },
+    { wave: 'pulse12', vol: 0.22, steps: bars(
+      'D4 F4 A4 F4 D4 F4 A4 F4', 'Bb3 D4 F4 D4 Bb3 D4 F4 D4', 'C4 E4 G4 E4 C4 E4 G4 E4', 'A3 C#4 E4 C#4 A3 C#4 E4 C#4',
+      'D4 F4 A4 F4 D4 F4 A4 F4', 'Bb3 D4 F4 D4 Bb3 D4 F4 D4', 'C4 E4 G4 E4 C4 E4 G4 E4', 'A3 C#4 E4 C#4 A3 C#4 E4 C#4') },
+    { wave: 'triangle', vol: 0.65, steps: bars(
+      'D2 D2 D3 D2 D2 D2 D3 D2', 'Bb1 Bb1 Bb2 Bb1 Bb1 Bb1 Bb2 Bb1', 'C2 C2 C3 C2 C2 C2 C3 C2', 'A1 A1 A2 A1 A1 A1 A2 A1',
+      'D2 D2 D3 D2 D2 D2 D3 D2', 'Bb1 Bb1 Bb2 Bb1 Bb1 Bb1 Bb2 Bb1', 'C2 C2 C3 C2 C2 C2 C3 C2', 'A1 A1 A2 A1 A1 A1 A2 A2') },
+    { wave: 'noise', vol: 0.26, steps: bars(...Array<string>(7).fill('k . h . s . h .'), 'k . h . s s s k') },
+  ],
+};
+
+export const SONGS: Record<SongId, Song> = { overworld, battle, title };
 export const SONG_STEPS = 64;

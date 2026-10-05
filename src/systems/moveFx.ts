@@ -51,7 +51,7 @@ function stream(scene: Phaser.Scene, key: string, from: Pt, to: Pt, o: StreamOpt
 }
 
 /** Estallido radial de partículas que se alejan y se desvanecen. */
-function burst(scene: Phaser.Scene, at: Pt, key: string, n: number, o: { speed?: number; life?: number; tint?: number; scale?: number; gravity?: number } = {}): Promise<void> {
+export function burst(scene: Phaser.Scene, at: Pt, key: string, n: number, o: { speed?: number; life?: number; tint?: number; scale?: number; gravity?: number } = {}): Promise<void> {
   const { speed = 26, life = 340, tint, scale = 1, gravity = 0 } = o;
   return Promise.all(Array.from({ length: n }, (_, i) => {
     const a = (i / n) * Math.PI * 2 + rnd(-0.3, 0.3), d = speed * rnd(0.6, 1.1);
@@ -64,7 +64,7 @@ function burst(scene: Phaser.Scene, at: Pt, key: string, n: number, o: { speed?:
 }
 
 /** Destello de 4 puntas en el punto de impacto. */
-function impactStar(scene: Phaser.Scene, at: Pt, size = 1.5): Promise<void> {
+export function impactStar(scene: Phaser.Scene, at: Pt, size = 1.5): Promise<void> {
   const s = particle(scene, 'fxp_star', at.x, at.y).setScale(0.3).setAngle(rnd(-15, 15));
   return tween(scene, { targets: s, scale: size, angle: s.angle + 40, alpha: 0, duration: 260, ease: 'Quad.easeOut', onComplete: () => s.destroy() });
 }

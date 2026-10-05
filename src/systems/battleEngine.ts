@@ -13,9 +13,10 @@ export type BattleEvent =
   | { t: 'faint'; side: Side }
   | { t: 'exp'; amount: number; from: number; to: number }
   | { t: 'levelUp'; level: number; gains: Stats; hp: number; max: number; progress: number }
-  | { t: 'end'; result: 'win' | 'lose' | 'run' };
+  | { t: 'catch'; shakes: number; caught: boolean }
+  | { t: 'end'; result: 'win' | 'lose' | 'run' | 'catch' };
 
-export type Action = { kind: 'fight'; moveIndex: number } | { kind: 'run' };
+export type Action = { kind: 'fight'; moveIndex: number } | { kind: 'run' } | { kind: 'ball' };
 
 const FALLBACK: MoveData = MOVES.forcejeo;
 
@@ -42,6 +43,13 @@ export function escapeOdds(playerSpd: number, enemySpd: number, attempts: number
   return Math.min(1, f / 256);
 }
 
+/** Probabilidad de capturar con una Poké Ball: más alta con menos PS y con mayor `catchRate`. */
+export function catchChance(enemy: Creature): number {
+  const max = enemy.stats.hp;
+  const p = ((3 * max - 2 * enemy.hp) / (3 * max)) * (SPECIES[enemy.speciesId].catchRate / 255);
+  return Math.min(0.95, Math.max(0.02, p));
+}
+
 export const gainedExp = (enemy: Creature): number => Math.floor((SPECIES[enemy.speciesId].expYield * enemy.level) / 5);
 
 const nameOf = (c: Creature) => SPECIES[c.speciesId].name.toUpperCase();
@@ -66,6 +74,23 @@ export class Battle {
   resolveTurn(action: Action): BattleEvent[] {
     if (this.over) return [];
     const ev: BattleEvent[] = [];
+
+    if (action.kind === 'ball') {
+      // tres comprobaciones ("sacudidas"): la ball tiene éxito si pasan las tres, cada una con p^(1/3)
+      const q = catchChance(this.enemy) ** (1 / 3);
+      let shakes = 0;
+      while (shakes < 3 && this.rng() < q) shakes++;
+      const caught = shakes === 3;
+      ev.push({ t: 'text', text: '¡Lanzaste una POKÉ BALL!' }, { t: 'catch', shakes, caught });
+      if (caught) {
+        ev.push({ t: 'text', text: `¡Atrapaste a ${nameOf(this.enemy)}!` }, { t: 'end', result: 'catch' });
+        this.over = true;
+        return ev;
+      }
+      ev.push({ t: 'text', text: shakes === 0 ? '¡Oh, no! ¡La criatura se escapó!' : shakes === 1 ? '¡Qué pena! ¡Casi lo atrapas!' : '¡Ya casi! ¡Se ha soltado!' });
+      this.attack('enemy', this.chooseEnemyMove(), ev);
+      return ev;
+    }
 
     if (action.kind === 'run') {
       this.runAttempts++;
