@@ -2,11 +2,11 @@
 // Uso: npm run sheet [escala]  →  out/sheet.png
 import { createCanvas } from '@napi-rs/canvas';
 import { mkdirSync, writeFileSync } from 'node:fs';
-import { PALETTE } from '../src/art/palette';
-import { drawSprite } from '../src/art/pixmap';
-import { TILE_DEFS } from '../src/art/tiles';
-import { PLAYER_FRAMES, PLAYER_H, PLAYER_W } from '../src/art/player';
-import { CREATURE_ART } from '../src/art/creatures';
+import { PALETTE } from '../art/palette';
+import { drawSprite } from '../art/pixmap';
+import { TILE_DEFS } from '../art/tiles';
+import { PLAYER_FRAMES, PLAYER_H, PLAYER_W } from '../art/player';
+import { CREATURE_ART } from '../art/creatures';
 
 const SCALE = Number(process.argv[2] ?? 4);
 const BG = '#7a7a8c';
@@ -56,8 +56,8 @@ writeFileSync('out/sheet.png', out.toBuffer('image/png'));
 console.log(`out/sheet.png ${out.width}x${out.height} (x${SCALE}), ${Object.keys(PALETTE).length} colores en paleta`);
 
 // ---------- hoja de UI: fuente, cajas, cursor, fondo de combate y efectos ----------
-import { SPEC } from '../src/art/ui';
-import { renderText } from '../src/art/font';
+import { SPEC } from '../art/ui';
+import { renderText } from '../art/font';
 
 const UW = 250;
 const lines = ['ABCDEFGHIJKLMNÑOPQRSTUVWXYZ', 'ÁÉÍÓÚÜ 0123456789 .,!?¡¿:\'-/%+()', '¡BRASITO USÓ LANZALLAMAS!', 'LUCHAR  MOCHILA  EQUIPO  HUIR'];

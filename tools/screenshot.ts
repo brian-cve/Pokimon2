@@ -12,6 +12,9 @@
 import { chromium } from 'playwright';
 import { mkdirSync } from 'node:fs';
 
+/** Lo que expone el juego en desarrollo (src/main.ts) para depurar. */
+type DebugWindow = { __game: { scene: { getScene(key: string): Record<string, (...args: unknown[]) => unknown> } } };
+
 const [name = 'shot', url = 'http://localhost:5173'] = process.argv.slice(2);
 mkdirSync('out', { recursive: true });
 const browser = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader'] });
@@ -24,11 +27,11 @@ await page.waitForTimeout(1200);
 const ow = "window.__game.scene.getScene('Overworld')";
 const tp = (process.env.TELEPORT ?? '').match(/^(\w+):(\d+),(\d+),(\w+)$/);
 if (tp) {
-  await page.evaluate(([m, x, y, d]) => (window as any).__game.scene.getScene('Overworld').debugTeleport(m, +x, +y, d), tp.slice(1));
+  await page.evaluate(([m, x, y, d]) => (window as unknown as DebugWindow).__game.scene.getScene('Overworld').debugTeleport(m, +x, +y, d), tp.slice(1));
   await page.waitForTimeout(600);
 }
 const enc = (process.env.ENCOUNTER ?? '').match(/^(\w+):(\d+)$/);
-if (enc) await page.evaluate(([s, l]) => (window as any).__game.scene.getScene('Overworld').debugEncounter(s, +l), enc.slice(1));
+if (enc) await page.evaluate(([s, l]) => (window as unknown as DebugWindow).__game.scene.getScene('Overworld').debugEncounter(s, +l), enc.slice(1));
 
 const state = () => page.evaluate(`${ow}.getState()`);
 for (const part of (process.env.KEYS ?? '').split('|').filter(Boolean)) {
