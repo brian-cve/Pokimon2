@@ -60,3 +60,40 @@ Para sustituir el arte por algo no generado, usa material con licencia clara y *
 Herramientas: [Tiled](https://www.mapeditor.org/) (mapas), [Free Texture Packer](http://free-tex-packer.com/) o [TexturePacker](https://www.codeandweb.com/texturepacker) (atlas), [LibreSprite](https://libresprite.github.io/) o Aseprite (dibujo).
 
 > **No incluyas sprites extraídos de juegos de Nintendo/Pokémon en el repositorio.** Son material con copyright de terceros y se mantienen fuera de este proyecto.
+
+## 5. Ejemplo real: importar los packs CC0 de Kenney
+
+Es el flujo que sigue este proyecto. Los comandos y archivos están en el repositorio:
+
+```bash
+npm run assets:download     # baja Tiny Town y Tiny Dungeon (CC0) a assets-src/kenney/
+npm run assets              # los importa y regenera atlas, tileset y mapas
+npm run dev
+```
+
+1. **Descargar** — `tools/download-kenney.ts` baja los `.zip` oficiales y conserva solo `Tilemap/tilemap_packed.png` y `License.txt`. Si un enlace falla (llevan un hash), cópialo de la página del pack.
+2. **Mirar la hoja** — cada `tilemap_packed.png` mide 192×176: **12 columnas × 11 filas** de 16×16. Una casilla se identifica por `(fila, columna)`; abre la imagen ampliada para elegir.
+3. **Mapear** — `tools/external/kenney.ts` dice qué casilla hace de qué cosa del juego:
+
+| Nombre en el juego | Casilla (fila, col) | Pack |
+| --- | --- | --- |
+| `grass0`, `grass1` | (0,0), (0,1) | Tiny Town |
+| `flowerRed` / `flowerYellow` | (0,2) (la segunda, reflejada) | Tiny Town |
+| `path` | (2,1) | Tiny Town |
+| `treeTop` / `treeBottom` | (0,4) / (1,4) | Tiny Town |
+| `forest` | (1,7) | Tiny Town |
+| `fence` | (6,9) + poste de (6,8) (composición) | Tiny Town |
+| `house0…8` | tejado (4,4–6), (5,4–6) y pared (7,4), (7,5), (7,4) | Tiny Town |
+| jugador | (7,1) | Tiny Dungeon |
+| criaturas | brasito (9,2) · gotilla (9,0) · hojin (9,4) · peluson (10,3) · aleteo (10,0) · cangrejete (10,2), escaladas ×4 | Tiny Dungeon |
+
+4. **Importar** — `npm run assets` recorta cada casilla (`drawImage` con suavizado desactivado, para no emborronar el pixel art), la mete en el **atlas** y en el **tileset** con los mismos nombres de siempre, así que mapas y código no cambian.
+5. **Rellenar huecos** — lo que el pack no trae (`tallGrass`, `water0-2`, `solid`) se completa con arte generado y el script lo avisa por consola. Es habitual: ningún pack trae todo.
+
+### Cómo cambiar una elección
+Edita la casilla en `TILES` o `CREATURES` y vuelve a ejecutar `npm run assets`. `npm test` comprueba que las casillas estén dentro de la hoja (`tools/external/kenney.test.ts`).
+
+### Qué tener en cuenta con arte de terceros
+- **Estilo coherente:** mezcla packs del mismo autor/estilo (aquí, los dos de Kenney comparten contorno oscuro). Al probar el *Roguelike/RPG Pack*, que sí trae agua, el estilo sin contorno no combinaba.
+- **Densidad de píxel:** un sprite de 16×16 escalado ×4 tiene píxeles más grandes que los de la interfaz.
+- **Un solo fotograma:** Kenney no trae animaciones de caminata ni vistas traseras.

@@ -12,16 +12,19 @@
     "test": "vitest run",
     "check": "npm run lint && npm test && npm run build",
     "sheet": "tsx tools/export-sheet.ts",
-    "shot": "tsx tools/screenshot.ts"
+    "shot": "tsx tools/screenshot.ts",
+    "assets:download": "tsx tools/download-kenney.ts",
+    "assets:procedural": "tsx tools/build-assets.ts --source=procedural"
   },
   "dependencies": {
-    "phaser": "^4.2.1"
+    "phaser": "^3.90.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@napi-rs/canvas": "^1.0.10",
     "@types/node": "^26.6.4",
     "eslint": "^10.12.0",
+    "fflate": "^0.8.3",
     "globals": "^17.13.0",
     "playwright": "^1.63.0",
     "tsx": "^4.23.15",
