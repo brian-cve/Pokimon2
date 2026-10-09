@@ -113,7 +113,7 @@ PreloadScene → TitleScene → OverworldScene ⇄ BattleScene (sleep/wake)
 
 ## Créditos y licencias
 
-- **Atlas de sprites y hoja de tiles:** ilustraciones generadas con IA (Gemini) y procesadas con los scripts de `tools/`. Revisa los términos de uso de la herramienta y el parecido con franquicias existentes antes de distribuir el juego.
+- **Atlas de sprites y hoja de tiles:** ilustraciones propias procesadas con los scripts de `tools/`. Revisa el parecido con franquicias existentes antes de distribuir el juego.
 - **Generado por código:** interiores, partículas, HUD, logo, música y efectos de sonido.
 - **Fuente:** *Press Start 2P* de CodeMan38, [SIL OFL 1.1](https://openfontlicense.org). Ver [`CREDITS.md`](CREDITS.md).
 - **Opcional:** packs CC0 de [Kenney](https://kenney.nl) (`assets:kenney`).

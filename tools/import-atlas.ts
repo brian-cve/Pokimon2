@@ -1,4 +1,4 @@
-// Importa un atlas dibujado a mano/IA (una imagen con todos los sprites sobre fondo blanco)
+// Importa un atlas dibujado a mano (una imagen con todos los sprites sobre fondo blanco)
 // y lo convierte en public/assets/atlas.png + atlas.json respetando el tamaño de cada frame.
 //   npm run assets:import -- <imagen.jpg> [--dump]
 // Los sprites se detectan por componentes conexas y se asignan por orden de lectura (fila, columna)
